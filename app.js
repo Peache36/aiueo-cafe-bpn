@@ -387,14 +387,36 @@ function bindHero(){
   }, {passive: true});
 }
 
+function agoId(ts){
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(String(ts || '')); if (!m) return String(ts || '');
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) - 8 * 3600000, d = Math.max(0, Date.now() - t) / 60000;
+  if (d < 1) return 'baru saja'; if (d < 60) return Math.floor(d) + ' menit lalu'; if (d < 1440) return Math.floor(d / 60) + ' jam lalu';
+  return d < 10080 ? Math.floor(d / 1440) + ' hari lalu' : String(ts).slice(0, 10);
+}
 function tierCardHtml(vp){
   if (!vp) return '';
   const t = vp.tier || {name: '-', color: '#9aa0a6'};
   return `<section class="card tiercard" style="--tc:${esc(t.color)}"><div class="row between"><div><small>Tier kamu</small><h2 class="tname">${esc(t.name)}</h2></div>
     <div class="vpbig"><b>${vp.total}</b><small>VP</small></div></div>
     <div class="vpbar"><i style="width:${vp.pct}%"></i></div>
-    <small>${vp.next ? `${vp.next.remaining} VP lagi menuju <b>${esc(vp.next.name)}</b>` : 'Tier tertinggi tercapai 🎉'} • ${vp.month} VP bulan ini</small>
+    <small>${vp.next ? `${vp.next.remaining} VP lagi menuju <b>${esc(vp.next.name)}</b>` : 'Tier tertinggi tercapai 🎉'} • ${vp.month} VP bulan ini • <u>detail ›</u></small>
     ${t.benefit ? `<p class="hint" style="font-size:12px;margin:6px 0 0">${esc(t.benefit)}</p>` : ''}</section>`;
+}
+const VP_LABEL_ICO = {'Main di kafe': '☕', Event: '🎲', Turnamen: '🏆', Penyesuaian: '✍️', Dibatalkan: '↩️'};
+async function openTierPage(){
+  const o = openModal('<div class="row between"><h3>Tier & VP</h3><button class="x" id="mx">×</button></div><div class="spin">Memuat…</div>');
+  o.querySelector('#mx').onclick = closeModal;
+  try {
+    const d = await call('tier_info'), cur = d.vp.tier && d.vp.tier.name, tab = {k: 'b'};
+    const draw = () => {
+      const body = tab.k === 'b' ? `<div class="list">${d.tiers.map(t => `<div class="${t.name === cur ? 'me' : ''}"><span class="ico" style="background:${esc(t.color)};color:#fff">★</span><div class="t"><b>${esc(t.name)}${t.name === cur ? ' (kamu)' : ''}</b><small style="white-space:normal">${t.benefit ? esc(t.benefit) : 'Mulai dari ' + t.minVp + ' VP'}</small></div><span class="pill">${t.minVp} VP</span></div>`).join('') || '<div class="empty">Belum ada tier</div>'}</div>`
+        : tab.k === 'h' ? `<div class="list lg" style="max-height:48vh;overflow:auto">${d.history.length ? d.history.map(h => `<div><span class="ico ${h.amount > 0 ? 'g' : ''}">${VP_LABEL_ICO[h.label] || '⭐'}</span><div class="t"><b>${esc(h.label)}</b><small>${esc(h.note)}</small><small>${esc(h.ts.slice(0, 16))}</small></div><b>${h.amount > 0 ? '+' : ''}${h.amount}</b></div>`).join('') : '<div class="empty">Belum ada riwayat VP</div>'}</div>`
+        : `<p style="white-space:pre-line;margin:6px 0">${esc(d.howto || 'Main di kafe dan ikut event untuk mengumpulkan VP.')}</p>`;
+      o.querySelector('#tb').innerHTML = `<div class="seg" id="ts2">${[['b','Benefit'],['h','Riwayat VP'],['c','Cara dapat VP']].map(([k, l]) => `<button data-k="${k}" class="${tab.k === k ? 'on' : ''}">${l}</button>`).join('')}</div>${body}`;
+      o.querySelector('#ts2').onclick = e => { const b = e.target.closest('[data-k]'); if (b){ tab.k = b.dataset.k; draw(); } };
+    };
+    o.querySelector('.spin').outerHTML = `<div id="tb"></div>`; draw();
+  } catch(e){ closeModal(); handleErr(e); }
 }
 function viewHome(){
   const v = S.view, s = S.settings;
@@ -409,6 +431,7 @@ function viewHome(){
     ${s.reward_terms ? `<p class="hint" style="font-size:12px;text-align:center">${esc(s.reward_terms)}</p>` : ''}
     <div class="center"><button class="link" id="rf">Segarkan</button></div><div id="hx"></div>`;
   bindHero(); loadHomeExtras();
+  const tc = document.querySelector('.tiercard'); if (tc){ tc.style.cursor = 'pointer'; tc.onclick = openTierPage; }
   $('#showQr').onclick = showMyQr;
   $('#rf').onclick = ev => run(ev.currentTarget, async () => { await enterAppQuiet(); toast('Diperbarui', 'ok'); });
 }
@@ -1109,8 +1132,9 @@ async function viewChampion(){
 async function hofVp(){
   const d = await call('leaderboard', {board: C.board, limit: C.big ? 50 : 10});
   $('#hb').innerHTML = `<div class="seg" id="vs"><button data-b="all" class="${C.board==='all'?'on':''}">Total VP</button><button data-b="month" class="${C.board==='month'?'on':''}">VP bulan ini</button></div>
-    <section class="card"><div class="list">${d.items.length ? d.items.map(i => `<div class="${i.me ? 'me' : ''}"><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}${i.me ? ' (kamu)' : ''}</b></div><b>${i.vp} VP</b></div>`).join('')
-      : '<div class="empty">Belum ada peringkat. Main dulu, yuk!</div>'}</div>
+    ${d.items.length >= 3 ? `<section class="card podium">${[1, 0, 2].map(k => { const i = d.items[k]; return `<div class="pd p${k + 1}"><span class="av">${esc(i.username.slice(0, 1).toUpperCase())}</span><b>${esc(i.username)}</b><small>${i.vp} VP</small><div class="pb">${medal(i.rank)}</div></div>`; }).join('')}</section>` : ''}
+    <section class="card"><div class="list">${(d.items.length >= 3 ? d.items.slice(3) : d.items).length ? (d.items.length >= 3 ? d.items.slice(3) : d.items).map(i => `<div class="${i.me ? 'me' : ''}"><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}${i.me ? ' (kamu)' : ''}</b></div><b>${i.vp} VP</b></div>`).join('')
+      : d.items.length ? '<div class="empty">Top 3 ada di podium 👆</div>' : '<div class="empty">Belum ada peringkat. Main dulu, yuk!</div>'}</div>
     ${!C.big && d.total > 10 ? '<div class="center"><button class="link" id="lb50">Lihat 50 teratas</button></div>' : ''}</section>
     ${d.me ? `<p class="center hint">Peringkat kamu: <b>#${d.me.rank}</b> dari ${d.total} • ${d.me.vp} VP</p>` : '<p class="center hint">Kamu belum masuk peringkat — kumpulkan VP dengan bermain.</p>'}`;
   $('#vs').onclick = e => { const b = e.target.closest('[data-b]'); if (b){ C.board = b.dataset.b; C.big = false; viewChampion(); } };
@@ -1309,8 +1333,7 @@ function renderParty(d){
     ${g ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Menerima undangan = pindah grup (dihitung 1 perubahan).</p>' : ''}</section>`;
   if (!g){
     h += `<section class="card"><h3>Party Play</h3><p class="hint" style="margin-top:0">Main bareng ${d.rules.min}–${d.rules.max} orang, dapat potongan harga (diatur kasir). Buat grup atau tunggu undangan dari ketua.</p>
-      ${d.canChange ? `<label>Nama grup</label><input id="gn" maxlength="40" placeholder="mis. Elang Board"><button class="btn" id="gc">Buat Grup</button>`
-      : quotaNotice(d.quota)}</section>`;
+      <label>Nama grup</label><input id="gn" maxlength="40" placeholder="mis. Elang Board"><button class="btn" id="gc">Buat Grup</button></section>`;
   } else {
     const st = g.status === 'active' ? '<span class="pill ok">Aktif</span>' : '<span class="pill off">Menunggu anggota</span>';
     h += `<section class="card"><div class="row between"><h3 style="margin:0">${esc(g.name)}</h3>${st}</div>
@@ -1324,7 +1347,7 @@ function renderParty(d){
         <p class="hint" style="font-size:12px;margin:8px 0 0">Bisa pakai username, atau nomor WhatsApp. Kalau nomornya belum punya akun, akun dibuatkan otomatis dan temanmu langsung jadi anggota tanpa perlu login dulu. Untuk akun yang sudah ada, baru terhitung anggota setelah menerima.</p></section>` : ''}
       <section class="card"><h3>Anak (tanpa akun)</h3><div class="row"><input id="kn" maxlength="40" placeholder="nama anak"><button class="btn sm" id="kg">Tambah</button></div>
         <p class="hint" style="font-size:12px;margin:8px 0 0">Anak ikut grupmu, dihitung sebagai anggota, dan kehadirannya dikonfirmasi kasir.</p></section>
-      <section class="card">${d.canChange ? '<button class="btn danger" id="gl">Keluar dari grup</button>' + (d.quota && d.quota.mode === 'month' ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Pindah atau keluar grup dibatasi 1 kali per bulan, reset tiap tanggal 1.</p>' : '') : quotaNotice(d.quota)}</section>`;
+      <section class="card">${d.canChange ? '<button class="btn danger" id="gl">Keluar dari grup</button>' + (d.quota && d.quota.mode === 'month' ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Keluar atau pindah grup dibatasi 1 kali per bulan, reset tiap tanggal 1. Menambah anggota bebas kapan saja.</p>' : '') : quotaNotice(d.quota)}</section>`;
   }
   $('#view').innerHTML = h;
   const act = (btn, name, payload, msg) => run(btn, async () => { renderParty(await call(name, payload)); if (msg) toast(msg, 'ok'); });
@@ -1510,7 +1533,7 @@ async function loadHomeExtras(){
     S.acts = a.items;
     const open = a.items.filter(x => x.status !== 'closed');
     el.innerHTML = `${open.length ? `<section class="card"><h3>Event & Turnamen</h3><div class="list">${open.map(actRow).join('')}</div></section>` : ''}
-      <section class="card"><h3>Aktivitas</h3><div class="list lg">${f.items.length ? f.items.map(i => `<div><span class="ico">${kindIcon[i.kind] || '•'}</span><div class="t"><b style="font-weight:600">${linkText(i.text, i.gid, i.game)}</b><small>${esc(i.ts)}</small></div></div>`).join('') : '<div class="empty">Belum ada aktivitas</div>'}</div></section>`;
+      <section class="card"><h3>Aktivitas</h3><div class="list lg">${f.items.length ? f.items.map(i => `<div><span class="ico av2">${i.user ? esc(i.user.charAt(0).toUpperCase()) : (kindIcon[i.kind] || '•')}</span><div class="t"><b style="font-weight:600">${linkText(i.text, i.gid, i.game)}</b><small>${esc(agoId(i.ts))}</small></div></div>`).join('') : '<div class="empty">Belum ada aktivitas</div>'}</div></section>`;
     el.onclick = e => {
       const b = e.target.closest('[data-reg]'); if (!b) return;
       run(b, async () => { const d = await call('act_register', {activityId: b.dataset.reg, cancel: b.dataset.c === '1'}); S.acts = d.items; loadHomeExtras(); toast(b.dataset.c === '1' ? 'Pendaftaran dibatalkan' : 'Terdaftar', 'ok'); });
@@ -1530,9 +1553,13 @@ async function loadProfileExtras(){
   try {
     const [b, c] = await Promise.all([call('my_badges'), call('my_collection')]);
     if (!$('#px')) return;
-    host.innerHTML = `<section class="card"><h3>Badge <small>(${b.badges.filter(x => x.earned).length}/${b.badges.length})</small></h3><div class="bgrid">${b.badges.map(x => `<div class="bdg ${x.earned ? 'on' : ''}" title="${esc(x.description)}"><span>${esc(x.icon)}</span><b>${esc(x.name)}</b><small>${x.earned ? 'Didapat' : x.progress + '/' + x.target}</small></div>`).join('')}</div></section>
+    const bf = S.bf || 'all', shown = b.badges.filter(x => bf === 'all' || (bf === 'on' ? x.earned : !x.earned));
+    host.innerHTML = `<section class="card"><h3>Badge <small>(${b.badges.filter(x => x.earned).length}/${b.badges.length})</small></h3>
+      <div class="chips" id="bfc">${[['all','Semua'],['on','Didapat'],['off','Belum']].map(([k, l]) => `<button class="chip ${bf === k ? 'on' : ''}" data-bf="${k}">${l}</button>`).join('')}</div>
+      <div class="bgrid">${shown.length ? '' : '<div class="empty">Belum ada di kategori ini</div>'}${shown.map(x => `<div class="bdg ${x.earned ? 'on' : ''}" title="${esc(x.description)}"><span>${esc(x.icon)}</span><b>${esc(x.name)}</b><small>${x.earned ? 'Didapat' : x.progress + '/' + x.target}</small></div>`).join('')}</div></section>
       <section class="card"><h3>Koleksi game <small>(${c.total}/${c.catalog})</small></h3>${c.items.length ? `<div class="ggrid">${c.items.map(g => `<div class="gcard"><div class="gimg" ${safeUrl(g.image) ? `data-img="${esc(g.image)}"` : ''}>${safeUrl(g.image) ? '' : ICON.game}</div><b>${esc(g.name)}</b><small>${g.plays}× main</small></div>`).join('')}</div>` : '<div class="empty">Belum ada game tercatat. Minta kasir/GM mencatat game yang kamu mainkan.</div>'}</section>`;
     host.querySelectorAll('.gimg[data-img]').forEach(el => el.style.backgroundImage = `url(${JSON.stringify(el.dataset.img)})`);
+    const bfc = host.querySelector('#bfc'); if (bfc) bfc.onclick = e => { const x = e.target.closest('[data-bf]'); if (x){ S.bf = x.dataset.bf; loadProfileExtras(); } };
   } catch(e){ /* tidak kritis */ }
 }
 

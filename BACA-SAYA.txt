@@ -80,3 +80,16 @@ LAIN-LAIN
 - Menu Admin dibagi menjadi tab: Ringkasan, Loyalty, Party, Notifikasi, Pengguna, Sistem.
 - Keterangan "Aktivitas" lebih kecil & muat beberapa baris. Nama game di aktivitas, notifikasi, dan Hall of Fame bisa diklik untuk membuka detail game.
 - Kolom baru otomatis: Games (hof_approve, hof_flag, hof_checkin) dan Feed (ref). Jalankan schema.sql terbaru bila tabel sudah ada (aman diulang).
+
+=== v7.4 ===
+- Kartu Tier di Beranda bisa diketuk: tab Benefit (semua tier), Riwayat VP, dan Cara dapat VP (teks diatur admin di Admin > Sistem > Aturan & Tampilan).
+- Leaderboard VP: podium Top 3 + daftar sisanya.
+- Aktivitas di Beranda: inisial pemain + waktu relatif ("2 jam lalu").
+- Badge di Profil: filter Semua / Didapat / Belum.
+- Banner geser di Beranda sudah ada sejak awal (Admin > Event/Banner).
+
+=== v7.5 ===
+- Aturan Party: bergabung (membuat grup, menerima undangan saat belum punya grup) kini BEBAS kapan saja. Yang dibatasi (1 kali per periode, reset tgl 1 atau N hari sesuai pengaturan admin) hanya KELUAR grup dan PINDAH grup.
+
+=== v7.6 ===
+- Admin > Sistem > Aturan & Tampilan: teks WA kode login dan WA undangan Party (nomor baru) bisa diedit. Isian otomatis: kode login {kafe} {kode} {menit}; undangan {nama} {ketua} {grup} {kafe} {link}. Kolom dikosongkan tidak bisa disimpan; bila terhapus, teks bawaan dipakai.
