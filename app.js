@@ -280,7 +280,7 @@ function loginStep2(r){
 
 /* ============================ SHELL ============================ */
 function tabsFor(role){
-  if (role === 'customer') return [['home','Beranda','home'],['party','Party','group'],['disc','Discover','game'],['champ','Champion','trophy'],['me','Profil','user']];
+  if (role === 'customer') return [['home','Beranda','home'],['party','Party','group'],['disc','Discover','game'],['champ','Hall of Fame','trophy'],['me','Profil','user']];
   if (role === 'cashier')  return [['kasir','Kasir','scan'],['visit','Aktivitas','cal'],['disc','Game','game'],['me','Profil','user']];
   if (role === 'gm')       return [['visit','Aktivitas','cal'],['disc','Game','game'],['me','Profil','user']];
   return [['kasir','Kasir','scan'],['visit','Aktivitas','cal'],['events','Event','cal'],['gadm','Game','game'],['admin','Admin','gear'],['me','Profil','user']];
@@ -574,6 +574,7 @@ function viewKasir(){
 async function loadActivity(){
   try {
     const d = await call('staff_activity'), el = $('#act'); if (!el) return;
+    el.classList.add('lg');
     el.innerHTML = d.items.length ? d.items.map(i => {
       const m = {earn:['g','+'+i.qty,'Stamp'], adjust:['', (i.qty>0?'+':'')+i.qty,'Koreksi'], redeem:['r','🎁','Tukar: '+i.note], void:['', i.qty,'Dibatalkan'], vp:['g', (i.qty>0?'+':'')+i.qty,'VP • '+i.note]}[i.kind] || ['', '•', i.kind];
       const canVoid = S.user.role === 'admin' && (i.kind === 'earn' || i.kind === 'vp') && !i.voided;
@@ -855,23 +856,27 @@ async function viewAdmin(){
   $('#view').innerHTML = '<div class="spin">Memuat…</div>';
   try {
     const [st, cf, rw, cp] = await Promise.all([call('stats'), call('settings_get'), call('rewards_list'), call('campaigns_list')]);
-    $('#view').innerHTML = `<section class="card"><h3>Ringkasan</h3><div class="tiles">
+    const AG = [['sum','Ringkasan'],['loy','Loyalty'],['party','Party'],['notif','Notifikasi'],['user','Pengguna'],['sys','Sistem']];
+    $('#view').innerHTML = `<div class="chips sticky" id="agn">${AG.map(([k, l]) => `<button class="chip" data-ag="${k}">${l}</button>`).join('')}</div><section class="card" data-sec="sum"><h3>Ringkasan</h3><div class="tiles">
         <div class="tile"><b>${st.customers}</b><small>Pelanggan</small></div><div class="tile"><b>${st.stampsToday}</b><small>Stamp hari ini</small></div>
         <div class="tile"><b>${st.redeemToday}</b><small>Reward ditukar hari ini</small></div><div class="tile"><b>${st.redeemMonth}</b><small>Reward bulan ini</small></div></div></section>
-      <section class="card" id="cpCard"></section>
-      <section class="card" id="rwCard"></section>
-      <section class="card" id="trCard"></section>
-      <section class="card" id="bdCard"></section>
-      <section class="card" id="rnCard"></section>
-      <section class="card" id="qtCard"></section>
-      <section class="card" id="nfCard"></section>
-      <section class="card" id="nrCard"></section>
-      <section class="card" id="pcCard"></section>
-      <section class="card" id="toolCard"></section>
-      <section class="card"><h3>Aturan & Tampilan</h3><div id="sf"></div><button class="btn" id="ssave">Simpan Pengaturan</button></section>
-      <section class="card"><h3>Pengguna & Peran</h3>
+      <section class="card" id="cpCard" data-sec="loy"></section>
+      <section class="card" id="rwCard" data-sec="loy"></section>
+      <section class="card" id="trCard" data-sec="loy"></section>
+      <section class="card" id="bdCard" data-sec="loy"></section>
+      <section class="card" id="rnCard" data-sec="party"></section>
+      <section class="card" id="qtCard" data-sec="party"></section>
+      <section class="card" id="nfCard" data-sec="notif"></section>
+      <section class="card" id="nrCard" data-sec="notif"></section>
+      <section class="card" id="pcCard" data-sec="notif"></section>
+      <section class="card" id="toolCard" data-sec="sys"></section>
+      <section class="card" data-sec="sys"><h3>Aturan & Tampilan</h3><div id="sf"></div><button class="btn" id="ssave">Simpan Pengaturan</button></section>
+      <section class="card" data-sec="user"><h3>Pengguna & Peran</h3>
         <div class="row"><input id="uq" placeholder="Cari nama / username / nomor HP (kosong = staff)"><button class="btn sm" id="ugo">Cari</button></div>
         <p class="hint" style="font-size:12px;margin:8px 0 0">Calon kasir harus sudah pernah daftar/login sekali.</p><div class="list" id="ul"></div></section>`;
+    const showAg = k => { S.ag = k; document.querySelectorAll('#agn .chip').forEach(c => c.classList.toggle('on', c.dataset.ag === k)); document.querySelectorAll('#view [data-sec]').forEach(c => c.style.display = c.dataset.sec === k ? '' : 'none'); window.scrollTo(0, 0); };
+    $('#agn').onclick = e => { const b = e.target.closest('[data-ag]'); if (b) showAg(b.dataset.ag); };
+    showAg(S.ag || 'sum');
     renderCampaigns(cp.campaigns);
     call('tiers_list').then(d => renderTiers(d.tiers)).catch(handleErr);
     call('badges_admin').then(d => renderBadges(d.badges)).catch(handleErr);
@@ -1062,6 +1067,21 @@ function filterSheet(){
   o.querySelector('#fa').onclick = () => { D.players = o.querySelector('#fp').value; D.dur = o.querySelector('#fd').value; D.level = o.querySelector('#fl').value; D.mset = sel; closeModal(); renderDiscover(); };
   o.querySelector('#fr').onclick = () => { D.players = D.dur = D.level = ''; D.mset = []; closeModal(); renderDiscover(); };
 }
+function gameLink(id, name){ return id ? `<a class="glink" data-gid="${esc(id)}">${esc(name)}</a>` : esc(name); }
+function linkText(text, id, name){
+  const i = id && name ? String(text).indexOf(name) : -1;
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + gameLink(id, name) + esc(text.slice(i + name.length));
+}
+async function openGameById(id){
+  try {
+    let g = (D.games || []).find(x => x.id === id);
+    if (!g){ const d = await call('games_list'); D.games = d.games; D.mech = d.mechanics; g = d.games.find(x => x.id === id); }
+    if (!g) return toast('Game tidak tersedia', 'err');
+    gameDetail(g);
+  } catch(e){ handleErr(e); }
+}
+document.addEventListener('click', e => { const a = e.target.closest('[data-gid]'); if (a){ e.preventDefault(); openGameById(a.dataset.gid); } });
 function levelLabel(v){ return v < 2 ? 'Ringan' : v < 3.5 ? 'Sedang' : 'Berat'; }
 function gameDetail(g){
   if (!g) return;
@@ -1076,21 +1096,80 @@ function gameDetail(g){
   o.querySelector('#mx').onclick = closeModal;
 }
 
-/* ============================ CHAMPION (leaderboard) ============================ */
-const C = {board: 'all', big: false};
+/* ============================ HALL OF FAME ============================ */
+const C = {tab: 'game', board: 'all', big: false};
+const modeLabel = m => m === 'sum' ? 'Akumulasi poin' : 'Skor tertinggi';
+const fmtScore = n => Number(n).toLocaleString('id-ID');
+const medal = r => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : r;
 async function viewChampion(){
-  $('#view').innerHTML = '<div class="spin">Memuat…</div>';
-  try {
-    const d = await call('leaderboard', {board: C.board, limit: C.big ? 50 : 10});
-    const medal = r => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : r;
-    $('#view').innerHTML = `<div class="seg"><button data-b="all" class="${C.board==='all'?'on':''}">Total VP</button><button data-b="month" class="${C.board==='month'?'on':''}">VP bulan ini</button></div>
-      <section class="card"><div class="list">${d.items.length ? d.items.map(i => `<div class="${i.me ? 'me' : ''}"><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}${i.me ? ' (kamu)' : ''}</b></div><b>${i.vp} VP</b></div>`).join('')
-        : '<div class="empty">Belum ada peringkat. Main dulu, yuk!</div>'}</div>
-      ${!C.big && d.total > 10 ? '<div class="center"><button class="link" id="lb50">Lihat 50 teratas</button></div>' : ''}</section>
-      ${d.me ? `<p class="center hint">Peringkat kamu: <b>#${d.me.rank}</b> dari ${d.total} • ${d.me.vp} VP</p>` : S.user.role === 'customer' ? '<p class="center hint">Kamu belum masuk peringkat — kumpulkan VP dengan bermain.</p>' : ''}`;
-    document.querySelector('.seg').onclick = e => { const b = e.target.closest('[data-b]'); if (b){ C.board = b.dataset.b; C.big = false; viewChampion(); } };
-    const m = $('#lb50'); if (m) m.onclick = () => { C.big = true; viewChampion(); };
-  } catch(e){ handleErr(e); }
+  $('#view').innerHTML = `<div class="seg"><button data-t="game" class="${C.tab==='game'?'on':''}">Game</button><button data-t="vp" class="${C.tab==='vp'?'on':''}">Peringkat VP</button></div><div id="hb"><div class="spin">Memuat…</div></div>`;
+  document.querySelector('.seg').onclick = e => { const b = e.target.closest('[data-t]'); if (b){ C.tab = b.dataset.t; viewChampion(); } };
+  try { await (C.tab === 'vp' ? hofVp() : hofGames()); } catch(e){ handleErr(e); }
+}
+async function hofVp(){
+  const d = await call('leaderboard', {board: C.board, limit: C.big ? 50 : 10});
+  $('#hb').innerHTML = `<div class="seg" id="vs"><button data-b="all" class="${C.board==='all'?'on':''}">Total VP</button><button data-b="month" class="${C.board==='month'?'on':''}">VP bulan ini</button></div>
+    <section class="card"><div class="list">${d.items.length ? d.items.map(i => `<div class="${i.me ? 'me' : ''}"><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}${i.me ? ' (kamu)' : ''}</b></div><b>${i.vp} VP</b></div>`).join('')
+      : '<div class="empty">Belum ada peringkat. Main dulu, yuk!</div>'}</div>
+    ${!C.big && d.total > 10 ? '<div class="center"><button class="link" id="lb50">Lihat 50 teratas</button></div>' : ''}</section>
+    ${d.me ? `<p class="center hint">Peringkat kamu: <b>#${d.me.rank}</b> dari ${d.total} • ${d.me.vp} VP</p>` : '<p class="center hint">Kamu belum masuk peringkat — kumpulkan VP dengan bermain.</p>'}`;
+  $('#vs').onclick = e => { const b = e.target.closest('[data-b]'); if (b){ C.board = b.dataset.b; C.big = false; viewChampion(); } };
+  const m = $('#lb50'); if (m) m.onclick = () => { C.big = true; viewChampion(); };
+}
+async function hofGames(){
+  const [d, pend] = await Promise.all([call('hof_overview'), call('score_pending')]);
+  S.hof = d.games;
+  $('#hb').innerHTML = `<div id="hp"></div>` + (d.games.length ? d.games.map(g => `<section class="card hof" data-g="${esc(g.id)}" style="cursor:pointer">
+      <div class="row between"><h3 style="margin:0">${gameLink(g.id, g.name)}</h3><span class="pill">${modeLabel(g.mode)}</span></div>
+      <p class="hint" style="margin:2px 0 8px;font-size:12px">${esc(g.label)} • ${g.total} pemain${g.entry === 'staff' ? ' • dicatat staf' : ''}</p>
+      <div class="list">${g.top.length ? g.top.map(i => `<div><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}</b></div><b>${fmtScore(i.score)}</b></div>`).join('') : '<div class="empty">Belum ada skor. Jadilah yang pertama!</div>'}</div>
+      ${g.me ? `<p class="hint" style="margin:8px 0 0;font-size:12px">Kamu: <b>#${g.me.rank}</b> • ${fmtScore(g.me.score)}</p>` : ''}</section>`).join('')
+    : '<section class="card"><div class="empty">Belum ada game di Hall of Fame. Admin bisa menambahkannya dari Katalog Game.</div></section>');
+  drawPending(pend);
+  $('#hb').onclick = e => {
+    const c = e.target.closest('[data-pc]');
+    if (c) return run(c, async () => { const r = await call('score_confirm', {roundId: c.dataset.pc, ok: c.dataset.ok === '1'}); drawPending(r); toast(c.dataset.ok === '1' ? 'Dikonfirmasi' : 'Ditolak', 'ok'); if (c.dataset.ok === '1') hofGames(); });
+    const g = e.target.closest('[data-g]'); if (g) run(null, () => hofDetail(g.dataset.g));
+  };
+}
+function drawPending(p){
+  const el = $('#hp'); if (!el) return;
+  const pl = x => x.players.map(q => `<span style="${q.me ? 'font-weight:700' : ''}">@${esc(q.username)} ${fmtScore(q.score)}</span>`).join(' • ');
+  el.innerHTML = (p.toConfirm.length ? `<section class="card"><h3>Menunggu konfirmasimu</h3><div class="list">${p.toConfirm.map(x => `<div style="flex-wrap:wrap"><div class="t"><b>${gameLink(x.gid, x.game)}</b><small>dicatat @${esc(x.by)}</small><small>${pl(x)}</small></div>
+      <div class="row" style="width:100%;margin-top:6px"><button class="btn sm" data-pc="${esc(x.id)}" data-ok="1">Benar</button><button class="btn sm ghost" data-pc="${esc(x.id)}" data-ok="0">Salah</button></div></div>`).join('')}</div></section>` : '')
+    + (p.waiting.length ? `<section class="card"><h3>Menunggu pemain lain</h3><div class="list">${p.waiting.map(x => `<div><div class="t"><b>${gameLink(x.gid, x.game)}</b><small>${pl(x)}</small></div><span class="pill">${x.review ? 'staf' : x.confirmed + '/' + x.needed}</span></div>`).join('')}</div></section>` : '');
+}
+async function hofDetail(id){
+  const d = await call('hof_game', {gameId: id, limit: 50});
+  const g = d.game;
+  const o = openModal(`<div class="row between"><h3>${esc(g.name)}</h3><button class="x" id="mx">×</button></div>
+    <p class="hint" style="margin:0 0 8px;font-size:12px">${modeLabel(g.mode)} • ${esc(g.label)}${g.mode === 'sum' ? ' • poin dijumlahkan' : ' • skor terbaik satu kali main'}</p>
+    <div class="list" style="max-height:46vh;overflow:auto">${d.items.length ? d.items.map(i => `<div class="${i.me ? 'me' : ''}"><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}${i.me ? ' (kamu)' : ''}</b><small>${i.plays}× dicatat</small></div><b>${fmtScore(i.score)}</b></div>`).join('') : '<div class="empty">Belum ada skor</div>'}</div>
+    ${d.me ? `<p class="center hint">Peringkat kamu <b>#${d.me.rank}</b> dari ${d.total}</p>` : ''}
+    ${d.history.length ? `<h3 style="margin-top:12px">Juara sebelumnya</h3><div class="list">${d.history.map(h => `<div><div class="t"><b>${esc(h.label)}</b><small>@${esc(h.username)}</small></div><b>${fmtScore(h.score)}</b></div>`).join('')}</div>` : ''}
+    ${g.entry === 'peer' ? '<button class="btn" id="hsc">Catat skor meja</button>' : '<p class="hint center" style="font-size:12px">Skor game ini dicatat oleh staf kafe.</p>'}`);
+  o.querySelector('#mx').onclick = closeModal;
+  const b = o.querySelector('#hsc'); if (b) b.onclick = () => { closeModal(); scoreForm(g); };
+}
+function scoreRows(max, selfName){
+  return `<div id="sr">${Array.from({length: 2}, (_, i) => scoreRow(i === 0 ? selfName : '', i === 0 && !!selfName)).join('')}</div>${max > 2 ? '<button class="link" id="sadd">+ Tambah pemain</button>' : ''}`;
+}
+function scoreRow(name, locked){
+  return `<div class="row srw" style="margin-bottom:6px"><input class="su" placeholder="username" autocapitalize="none" value="${esc(name || '')}" ${locked ? 'readonly' : ''} style="flex:1.4"><input class="ss" type="number" inputmode="decimal" placeholder="skor" style="flex:1"></div>`;
+}
+function readScoreRows(root){ return [...root.querySelectorAll('.srw')].map(r => ({username: r.querySelector('.su').value.trim(), score: r.querySelector('.ss').value})).filter(x => x.username || x.score !== ''); }
+function bindScoreAdd(root, max){
+  const add = root.querySelector('#sadd'); if (!add) return;
+  add.onclick = () => { const n = root.querySelectorAll('.srw').length; if (n >= max) return toast('Maksimal ' + max + ' pemain', 'err'); root.querySelector('#sr').insertAdjacentHTML('beforeend', scoreRow('', false)); };
+}
+function scoreForm(g){
+  const o = openModal(`<div class="row between"><h3>Catat skor ${esc(g.name)}</h3><button class="x" id="mx">×</button></div>
+    <p class="hint" style="margin:0 0 8px;font-size:12px">Isi semua pemain di meja dan skornya. Pemain lain akan diminta mengonfirmasi di HP mereka. Semua pemain harus sudah check-in hari ini.</p>
+    ${scoreRows(12, S.user.username)}<button class="btn" id="fs">Kirim untuk dikonfirmasi</button>`);
+  o.querySelector('#mx').onclick = closeModal; bindScoreAdd(o, 12);
+  o.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => {
+    await call('score_submit', {gameId: g.id, players: readScoreRows(o)}); closeModal(); toast('Terkirim, menunggu konfirmasi pemain lain', 'ok'); viewChampion();
+  });
 }
 
 /* ============================ ADMIN: GAME ============================ */
@@ -1124,12 +1203,27 @@ function gameForm(g){
     <label>Mekanik <small>(pisahkan koma, maks 8)</small></label><input id="g_m" value="${esc(g.mechanics.join(', '))}" placeholder="Deck Building, Trading">
     <label>Deskripsi</label><textarea id="g_ds" rows="3" maxlength="300">${esc(g.description)}</textarea>
     <label class="chk"><input type="checkbox" id="g_a" ${g.active ? 'checked' : ''}> Aktif (tampil di katalog)</label>
+    <div class="card" style="margin:10px 0;padding:10px;border:1px solid var(--line)"><label class="chk" style="margin:0"><input type="checkbox" id="g_h" ${g.hof ? 'checked' : ''}> Tampilkan di Hall of Fame</label>
+      <div id="g_hx" style="display:${g.hof ? 'block' : 'none'}">
+        <label>Cara menghitung</label><select id="g_hm"><option value="high" ${g.hofMode !== 'sum' ? 'selected' : ''}>Skor tertinggi (terbaik satu kali main)</option><option value="sum" ${g.hofMode === 'sum' ? 'selected' : ''}>Akumulasi poin (dijumlahkan)</option></select>
+        <label>Periode</label><select id="g_hp"><option value="all" ${g.hofPeriod === 'all' ? 'selected' : ''}>Sepanjang waktu</option><option value="month" ${g.hofPeriod === 'month' ? 'selected' : ''}>Bulanan (reset tiap tanggal 1)</option><option value="season" ${g.hofPeriod === 'season' ? 'selected' : ''}>Musim (admin yang mengakhiri)</option></select>
+        <label>Yang mencatat skor</label><select id="g_he"><option value="peer" ${g.hofEntry !== 'staff' ? 'selected' : ''}>Pemain (dikonfirmasi pemain lain)</option><option value="staff" ${g.hofEntry === 'staff' ? 'selected' : ''}>Hanya staf (untuk game berhadiah)</option></select>
+        <label>Batas skor wajar <small>(0 = tanpa batas; skor di atasnya ditolak)</small></label><input id="g_hx2" type="number" min="0" value="${g.hofMax || 0}">
+        <label>Persetujuan staf</label><select id="g_ha"><option value="top" ${g.hofApprove !== 'none' && g.hofApprove !== 'all' ? 'selected' : ''}>Hanya yang berpengaruh (masuk Top 3 atau melewati ambang)</option><option value="all" ${g.hofApprove === 'all' ? 'selected' : ''}>Semua skor menunggu staf</option><option value="none" ${g.hofApprove === 'none' ? 'selected' : ''}>Tanpa persetujuan (cukup konfirmasi pemain)</option></select>
+        <label>Ambang skor perlu dicek staf <small>(0 = tidak dipakai)</small></label><input id="g_hf" type="number" min="0" value="${g.hofFlag || 0}">
+        <label class="chk"><input type="checkbox" id="g_hc" ${g.hofCheckin ? 'checked' : ''}> Pemain wajib sudah check-in hari itu</label>
+        ${g.id && g.hofPeriod === 'season' ? `<button class="btn ghost" id="g_se">Akhiri Musim ${g.seasonNo || 1} & mulai Musim ${(g.seasonNo || 1) + 1}</button>` : ''}
+      </div></div>
     <button class="btn" id="fs">Simpan</button>${g.id ? '<button class="btn danger" id="fd">Hapus Game</button>' : ''}`);
   o.querySelector('#mx').onclick = closeModal;
+  o.querySelector('#g_h').onchange = e => { o.querySelector('#g_hx').style.display = e.target.checked ? 'block' : 'none'; };
+  const se = o.querySelector('#g_se');
+  if (se) se.onclick = async () => { if (await askConfirm('Akhiri musim ini? Juara dicatat dan papan mulai dari nol.', 'Akhiri musim')) run(se, async () => { await call('hof_season_end', {gameId: g.id}); closeModal(); toast('Musim baru dimulai', 'ok'); viewGameAdmin(); }); };
   const v = id => o.querySelector(id).value;
   o.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => {
     const d = await call('game_save', {id: g.id, name: v('#g_n'), image: v('#g_i'), minPlayers: v('#g_mn'), maxPlayers: v('#g_mx'), level: v('#g_l'), duration: v('#g_d'),
-      mechanics: v('#g_m'), description: v('#g_ds'), active: o.querySelector('#g_a').checked});
+      mechanics: v('#g_m'), description: v('#g_ds'), active: o.querySelector('#g_a').checked,
+      hof: o.querySelector('#g_h').checked, hofMode: v('#g_hm'), hofPeriod: v('#g_hp'), hofEntry: v('#g_he'), hofMax: v('#g_hx2'), hofApprove: v('#g_ha'), hofFlag: v('#g_hf'), hofCheckin: o.querySelector('#g_hc').checked});
     closeModal(); renderGameAdmin(d.games); toast('Game disimpan', 'ok');
   });
   const del = o.querySelector('#fd');
@@ -1367,17 +1461,41 @@ function drawGroupPanel(){
     V.group = await call('group_staff_view', {groupId: g.id}); drawGroupPanel();
   });
 }
+async function loadReview(){
+  const el = $('#hq'); if (!el) return;
+  try {
+    const d = await call('score_review');
+    if (!d.items.length){ el.style.display = 'none'; return; }
+    el.style.display = ''; 
+    el.innerHTML = `<h3>Menunggu persetujuan <span class="pill">${d.items.length}</span></h3><div class="list">${d.items.map(x => `<div style="flex-wrap:wrap"><div class="t"><b>${gameLink(x.gameId, x.game)}</b><small>dicatat @${esc(x.by)} • ${esc(x.ts.slice(5,16))}</small><small>${x.players.map(q => '@' + esc(q.username) + ' ' + fmtScore(q.score)).join(' • ')}</small></div>
+      <div class="row" style="width:100%;margin-top:6px"><button class="btn sm" data-rd="${esc(x.id)}" data-ok="1">Setujui</button><button class="btn sm ghost" data-rd="${esc(x.id)}" data-ok="0">Tolak</button></div></div>`).join('')}</div>`;
+    el.onclick = e => {
+      const b = e.target.closest('[data-rd]'); if (!b) return;
+      if (b.dataset.ok === '1') return run(b, async () => { await call('score_decide', {roundId: b.dataset.rd, ok: true}); toast('Skor disetujui', 'ok'); loadReview(); });
+      const o = openModal(`<div class="row between"><h3>Tolak skor</h3><button class="x" id="mx">×</button></div><label>Alasan *</label><input id="rr" maxlength="100" placeholder="mis. skor tidak sesuai hasil meja"><button class="btn danger" id="rf">Tolak</button>`);
+      o.querySelector('#mx').onclick = closeModal;
+      o.querySelector('#rf').onclick = ev => run(ev.currentTarget, async () => { await call('score_decide', {roundId: b.dataset.rd, ok: false, reason: o.querySelector('#rr').value}); closeModal(); toast('Skor ditolak', 'ok'); loadReview(); });
+    };
+  } catch(e){ /* tidak kritis */ }
+}
 function visitGame(){
   $('#vb').innerHTML = '<div class="spin">Memuat…</div>';
-  (V.games ? Promise.resolve(V.games) : call('games_list').then(d => (V.games = d.games))).then(list => {
-    $('#vb').innerHTML = `<section class="card"><h3>Catat game dimainkan</h3>
+  call('games_list').then(d => d.games).then(list => {   /* selalu ambil terbaru: game baru dari admin langsung muncul */
+    if (!list.length){ $('#vb').innerHTML = '<section class="card"><h3>Catat game dimainkan</h3><div class="empty">Belum ada game di katalog. Admin bisa menambah game di tab Game.</div><button class="btn ghost" id="grf">Muat ulang</button></section>'; $('#grf').onclick = visitGame; return; }
+    $('#vb').innerHTML = `<section class="card" id="hq" style="display:none"></section><section class="card"><h3>Catat game dimainkan</h3>
       <label>Game</label><select id="gp">${list.map(g => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('')}</select>
       <label>Pemain <small>(username, pisahkan koma — opsional)</small></label><input id="gu" autocapitalize="none" placeholder="user1, user2">
-      <button class="btn" id="ggo">Catat 1 kali main</button></section>`;
+      <button class="btn" id="ggo">Catat 1 kali main</button></section>
+      ${list.some(g => g.hof) ? `<section class="card" id="hofS"><h3>Catat skor Hall of Fame</h3>
+        <label>Game</label><select id="hg">${list.filter(g => g.hof).map(g => `<option value="${esc(g.id)}">${esc(g.name)} (${g.hofMode === 'sum' ? 'akumulasi' : 'tertinggi'})</option>`).join('')}</select>
+        <label>Pemain & skor</label>${scoreRows(12, '')}<button class="btn" id="hgo">Simpan skor</button></section>` : ''}`;
+    const hs = $('#hofS'); if (hs){ bindScoreAdd(hs, 12);
+      $('#hgo').onclick = ev => run(ev.currentTarget, async () => { await call('score_staff', {gameId: $('#hg').value, players: readScoreRows(hs)}); toast('Skor tercatat', 'ok'); hs.querySelectorAll('.su,.ss').forEach(i => i.value = ''); }); }
+    loadReview();
     $('#ggo').onclick = ev => run(ev.currentTarget, async () => {
       const names = $('#gu').value.split(',').map(x => x.trim()).filter(Boolean);
       const d = await call('game_play', {gameId: $('#gp').value, usernames: names});
-      V.games = null; toast(d.name + ' dicatat (' + d.plays + '× dimainkan)', 'ok'); $('#gu').value = '';
+      toast(d.name + ' dicatat (' + d.plays + '× dimainkan)', 'ok'); $('#gu').value = '';
     });
   }).catch(handleErr);
 }
@@ -1392,7 +1510,7 @@ async function loadHomeExtras(){
     S.acts = a.items;
     const open = a.items.filter(x => x.status !== 'closed');
     el.innerHTML = `${open.length ? `<section class="card"><h3>Event & Turnamen</h3><div class="list">${open.map(actRow).join('')}</div></section>` : ''}
-      <section class="card"><h3>Aktivitas</h3><div class="list">${f.items.length ? f.items.map(i => `<div><span class="ico">${kindIcon[i.kind] || '•'}</span><div class="t"><b style="font-weight:600">${esc(i.text)}</b><small>${esc(i.ts)}</small></div></div>`).join('') : '<div class="empty">Belum ada aktivitas</div>'}</div></section>`;
+      <section class="card"><h3>Aktivitas</h3><div class="list lg">${f.items.length ? f.items.map(i => `<div><span class="ico">${kindIcon[i.kind] || '•'}</span><div class="t"><b style="font-weight:600">${linkText(i.text, i.gid, i.game)}</b><small>${esc(i.ts)}</small></div></div>`).join('') : '<div class="empty">Belum ada aktivitas</div>'}</div></section>`;
     el.onclick = e => {
       const b = e.target.closest('[data-reg]'); if (!b) return;
       run(b, async () => { const d = await call('act_register', {activityId: b.dataset.reg, cancel: b.dataset.c === '1'}); S.acts = d.items; loadHomeExtras(); toast(b.dataset.c === '1' ? 'Pendaftaran dibatalkan' : 'Terdaftar', 'ok'); });
@@ -1542,7 +1660,7 @@ async function pushOff(){   // dipanggil saat keluar; kegagalan diabaikan
     localStorage.removeItem('ls_push');
   } catch(e){ /* abaikan */ }
 }
-const kindIco = {info: '📣', reminder: '⏰', event: '🎲', reward: '🎁'};
+const kindIco = {info: '📣', reminder: '⏰', event: '🎲', reward: '🎁', game: '🎯', win: '🏆'};
 async function openInbox(){
   const o = openModal('<div class="row between"><h3>Notifikasi</h3><button class="x" id="mx">×</button></div><div class="spin">Memuat…</div>');
   o.querySelector('#mx').onclick = closeModal;
@@ -1550,7 +1668,7 @@ async function openInbox(){
     const d = await call('notif_list');
     const supported = 'Notification' in window;
     const perm = supported ? Notification.permission : 'unsupported';
-    o.querySelector('.spin').outerHTML = `<div class="list" style="max-height:52vh;overflow:auto">${d.items.length ? d.items.map(i => `<div style="${i.read ? '' : 'background:var(--soft);border-radius:12px;padding-left:8px;padding-right:8px'}"><span class="ico">${kindIco[i.kind] || '📣'}</span><div class="t"><b>${esc(i.title)}</b><small style="white-space:normal">${esc(i.body)}</small><small>${esc(i.ts)}</small></div></div>`).join('') : '<div class="empty">Belum ada notifikasi</div>'}</div>
+    o.querySelector('.spin').outerHTML = `<div class="list" style="max-height:52vh;overflow:auto">${d.items.length ? d.items.map(i => `<div style="${i.read ? '' : 'background:var(--soft);border-radius:12px;padding-left:8px;padding-right:8px'}"><span class="ico">${kindIco[i.kind] || '📣'}</span><div class="t"><b>${i.gid ? gameLink(i.gid, i.title) : esc(i.title)}</b><small style="white-space:normal">${esc(i.body)}</small><small>${esc(i.ts)}</small></div></div>`).join('') : '<div class="empty">Belum ada notifikasi</div>'}</div>
       ${pushSupported() ? (pushIsOn() ? '<p class="hint center" style="font-size:12px">Push aktif di perangkat ini.</p>' : '<button class="btn ghost" id="pe">Aktifkan push di perangkat ini</button>')
         : (supported && perm !== 'denied' && !devNotifOn() ? '<button class="btn ghost" id="dn">Aktifkan pemberitahuan di perangkat</button>' : '')}
       ${!pushSupported() && devNotifOn() ? '<p class="hint center" style="font-size:12px">Pemberitahuan perangkat aktif.</p>' : ''}
@@ -1661,7 +1779,9 @@ async function renderTools(){
   try { tables = (await call('export_tables')).tables; } catch(e){ handleErr(e); return; }
   el.innerHTML = `<h3>Data & Cadangan</h3>
     <label>Ekspor ke CSV</label><div class="row"><select id="exT">${tables.map(t => `<option>${esc(t)}</option>`).join('')}</select><button class="btn sm" id="exGo">Unduh</button></div>
-    <div class="row" style="margin-top:12px"><button class="btn ghost" id="logBtn">Log aktivitas admin</button><button class="btn ghost" id="bkBtn">Cadangan</button></div>`;
+    <div class="row" style="margin-top:12px"><button class="btn ghost" id="logBtn">Log aktivitas admin</button><button class="btn ghost" id="bkBtn">Cadangan</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" id="srBtn">Catatan skor Hall of Fame</button></div>`;
+  $('#srBtn').onclick = ev => run(ev.currentTarget, async () => scoreRoundsModal(await call('score_rounds')));
   $('#exGo').onclick = ev => run(ev.currentTarget, async () => { const d = await call('export_csv', {table: $('#exT').value}); downloadText(d.filename, d.csv); toast(d.rows + ' baris diunduh', 'ok'); });
   $('#logBtn').onclick = ev => run(ev.currentTarget, async () => {
     const d = await call('admin_log');
@@ -1669,6 +1789,18 @@ async function renderTools(){
     o.querySelector('#mx').onclick = closeModal;
   });
   $('#bkBtn').onclick = ev => run(ev.currentTarget, async () => backupModal(await call('backups_list')));
+}
+function scoreRoundsModal(d){
+  while (modals.length) closeModal();
+  const st = {confirmed: 'Sah', pending: 'Menunggu', rejected: 'Ditolak', expired: 'Kedaluwarsa', void: 'Dibatalkan'};
+  const o = openModal(`<div class="row between"><h3>Catatan skor</h3><button class="x" id="mx">×</button></div><div class="list" style="max-height:62vh;overflow:auto">${d.items.length ? d.items.map(i => `<div><div class="t"><b>${esc(i.game)} • ${st[i.status] || i.status}</b><small>@${esc(i.by)} • ${esc(i.source === 'staff' ? 'staf' : 'pemain')} • ${esc(i.ts.slice(5, 16))}</small><small style="word-break:break-word">${esc(i.players)}${i.reason ? ' — ' + esc(i.reason) : ''}</small></div>${i.status === 'void' ? '' : `<button class="link" data-v="${esc(i.id)}">Batalkan</button>`}</div>`).join('') : '<div class="empty">Belum ada catatan</div>'}</div>`);
+  o.querySelector('#mx').onclick = closeModal;
+  o.onclick = e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    const m = openModal(`<div class="row between"><h3>Batalkan catatan skor</h3><button class="x" id="mx">×</button></div><label>Alasan *</label><input id="vr" maxlength="100" placeholder="mis. skor tidak masuk akal"><button class="btn danger" id="fs">Batalkan</button>`);
+    m.querySelector('#mx').onclick = closeModal;
+    m.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => { const r = await call('score_void', {roundId: b.dataset.v, reason: m.querySelector('#vr').value}); toast('Dibatalkan', 'ok'); scoreRoundsModal(r); });
+  };
 }
 function backupModal(d){
   while (modals.length) closeModal();

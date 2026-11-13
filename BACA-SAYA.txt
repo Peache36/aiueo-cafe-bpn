@@ -59,7 +59,24 @@ FITUR BARU (v7.1)
 - Pengingat otomatis "Stamp hampir penuh" (atur di kartu pengingat), mode gelap otomatis.
 - Jika sebelumnya schema.sql sudah dijalankan: jalankan ulang versi terbaru (aman diulang).
 
+HALL OF FAME (v7.2)
+- Tab Champion kini Hall of Fame: Peringkat VP + peringkat per game.
+- Admin: Katalog Game > Ubah > "Tampilkan di Hall of Fame". Atur cara hitung (Skor tertinggi / Akumulasi poin),
+  periode (Sepanjang waktu / Bulanan / Musim), pencatat (Pemain dikonfirmasi pemain lain / Hanya staf), dan batas skor wajar.
+- Pemain mencatat skor meja, pemain lain mengonfirmasi di HP (kedaluwarsa 24 jam). Syarat: semua pemain sudah check-in hari itu, maks 6 catatan/pemain/hari.
+- Staf mencatat langsung di tab Kunjungan > Game > "Catat skor Hall of Fame".
+- Admin: kartu "Data & Cadangan" > "Catatan skor Hall of Fame" untuk membatalkan skor. Musim diakhiri dari form game.
+- Jalankan ulang schema.sql (ada tabel baru: scorerounds, scores).
+
 LAIN-LAIN
 - Cron harian 09:00 WITA (pengingat otomatis & pembersihan) jalan otomatis di production.
 - Hapus keygen.html setelah kunci dibuat.
 - Apps Script lama (Kode.gs, AppCode.gs, Index.html) tidak dipakai lagi.
+
+
+=== v7.3 ===
+- Hall of Fame: persetujuan staf per game (admin > Game > ubah game): "Hanya yang berpengaruh" (bawaan: skor yang masuk Top 3 atau melewati ambang), "Semua skor menunggu staf", atau "Tanpa persetujuan". Syarat check-in kini opsional (bawaan MATI).
+- Antrean "Menunggu persetujuan" tampil di tab Kunjungan > Game untuk kasir/GM/admin (Setujui / Tolak + alasan). Staf menerima notifikasi.
+- Menu Admin dibagi menjadi tab: Ringkasan, Loyalty, Party, Notifikasi, Pengguna, Sistem.
+- Keterangan "Aktivitas" lebih kecil & muat beberapa baris. Nama game di aktivitas, notifikasi, dan Hall of Fame bisa diklik untuk membuka detail game.
+- Kolom baru otomatis: Games (hof_approve, hof_flag, hof_checkin) dan Feed (ref). Jalankan schema.sql terbaru bila tabel sudah ada (aman diulang).

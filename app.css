@@ -198,3 +198,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0
   .login-hero,#splash{background:#fff;color:#231F20}
   .login-hero h1,.login-hero p{color:#231F20}
 }
+
+/* v7.3 */
+.chips.sticky{position:sticky;top:var(--chrome);z-index:5;background:var(--card);padding:8px 0;margin:0 0 6px}
+.glink{color:var(--primary);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.list.lg>div{padding:8px 0;align-items:flex-start}
+.list.lg .t b{white-space:normal;overflow:visible;text-overflow:clip;font-size:13.5px;line-height:1.3}
+.list.lg .t small{font-size:11px;line-height:1.35;white-space:normal}
+.list.lg .ico{width:30px;height:30px;font-size:14px}
