@@ -472,3 +472,13 @@ revoke all on function public.aiueo_acquire_lock(text, text, int) from public, a
 revoke all on function public.aiueo_release_lock(text, text) from public, anon, authenticated;
 grant execute on function public.aiueo_acquire_lock(text, text, int) to service_role;
 grant execute on function public.aiueo_release_lock(text, text) to service_role;
+-- izin untuk service_role (project Supabase baru tidak lagi memberi izin otomatis)
+grant usage on schema public to service_role;
+do $$ declare r record; begin
+  for r in select tablename from pg_tables where schemaname = 'public' and tablename like 'aiueo\_%' loop
+    execute format('grant all on table public.%I to service_role', r.tablename);
+  end loop;
+  for r in select sequencename from pg_sequences where schemaname = 'public' and sequencename like 'aiueo\_%' loop
+    execute format('grant usage, select on sequence public.%I to service_role', r.sequencename);
+  end loop;
+end $$;

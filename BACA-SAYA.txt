@@ -50,7 +50,7 @@ PASANG DI HP
 FITUR BARU (v7.1)
 - ID rapi & berurutan: USR-0001, PTY-0001, VST-0001, dst (penghitung di database).
 - Undang nomor WA yang belum terdaftar: nomor dicek ke Fonnte (/validate), akun dibuat otomatis
-  dari nama yang diisi ketua. Tombol "Periksa ulang" diberi jeda 30 detik dan maks 12 cek/jam per ketua.
+  dari nama yang diisi ketua, dan teman langsung jadi anggota grup tanpa perlu login dulu. Tombol "Periksa ulang" diberi jeda 30 detik; batas 60 cek/jam per ketua (cukup untuk 15 teman sekaligus).
   Jika paket Fonnte Anda tidak punya fitur validate, pengecekan akan gagal dengan pesan error (nomor tidak bisa diundang).
 - Jeda perubahan Party (anggota + ganti nama): bawaan reset tiap tanggal 1. Admin bisa isi
   "Jeda perubahan Party (hari)" di Aturan & Tampilan, dan mereset jeda per orang / semua di kartu "Jeda Perubahan Party".

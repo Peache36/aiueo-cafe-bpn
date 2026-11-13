@@ -1227,7 +1227,7 @@ function renderParty(d){
       <div class="list">${g.members.map(m => `<div><span class="ico">${m.isKid ? '🧒' : m.isLeader ? '👑' : '👤'}</span><div class="t"><b>${esc(m.label)}${m.isMe ? ' (kamu)' : ''}</b><small>${m.isLeader ? 'Ketua' : m.isKid ? 'Anak' : 'Anggota'}</small></div>
         ${m.isKid && m.mine ? `<button class="link" data-kr="${esc(m.id)}">Hapus</button>` : ''}</div>`).join('')}</div></section>
       ${g.isLeader ? `<section class="card"><h3>Undang anggota</h3><div class="row"><input id="iu" placeholder="username atau no. WhatsApp teman" autocapitalize="none"><button class="btn sm" id="ig">Undang</button></div>
-        <p class="hint" style="font-size:12px;margin:8px 0 0">Bisa pakai username, atau nomor WhatsApp. Kalau nomornya belum punya akun, akun dibuatkan otomatis dan teman tinggal masuk dengan nomor itu. Baru terhitung anggota setelah menerima.</p></section>` : ''}
+        <p class="hint" style="font-size:12px;margin:8px 0 0">Bisa pakai username, atau nomor WhatsApp. Kalau nomornya belum punya akun, akun dibuatkan otomatis dan temanmu langsung jadi anggota tanpa perlu login dulu. Untuk akun yang sudah ada, baru terhitung anggota setelah menerima.</p></section>` : ''}
       <section class="card"><h3>Anak (tanpa akun)</h3><div class="row"><input id="kn" maxlength="40" placeholder="nama anak"><button class="btn sm" id="kg">Tambah</button></div>
         <p class="hint" style="font-size:12px;margin:8px 0 0">Anak ikut grupmu, dihitung sebagai anggota, dan kehadirannya dikonfirmasi kasir.</p></section>
       <section class="card">${d.canChange ? '<button class="btn danger" id="gl">Keluar dari grup</button>' + (d.quota && d.quota.mode === 'month' ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Pindah atau keluar grup dibatasi 1 kali per bulan, reset tiap tanggal 1.</p>' : '') : quotaNotice(d.quota)}</section>`;
@@ -1266,7 +1266,7 @@ async function inviteStep(payload){
   try {
     const d = await call('group_invite', payload);
     if (d.needName) return inviteNameModal(payload, d);
-    renderParty(d); toast('Undangan terkirim', 'ok');
+    renderParty(d); toast(d.added ? 'Teman ditambahkan ke grup' : 'Undangan terkirim', 'ok');
   } catch(e){
     if (['WA_INVALID', 'WA_CHECK_FAIL', 'WA_WAIT'].includes(e.code)) return inviteRetryModal(payload, e);
     handleErr(e);
@@ -1274,8 +1274,8 @@ async function inviteStep(payload){
 }
 function inviteNameModal(payload, d){
   const o = openModal(`<div class="row between"><h3>Nomor belum punya akun</h3><button class="x" id="mx">×</button></div>
-    <p class="hint" style="margin:0">Nomor <b>${esc(d.masked)}</b> aktif di WhatsApp. Isi nama temanmu, akun dibuatkan otomatis dan undangan langsung terkirim.</p>
-    <label>Nama teman</label><input id="in_n" maxlength="60" placeholder="mis. Budi Santoso"><button class="btn" id="fs">Buat akun & undang</button>`);
+    <p class="hint" style="margin:0">Nomor <b>${esc(d.masked)}</b> aktif di WhatsApp. Isi nama temanmu, akun dibuatkan otomatis dan ia langsung masuk ke grupmu.</p>
+    <label>Nama teman</label><input id="in_n" maxlength="60" placeholder="mis. Budi Santoso"><button class="btn" id="fs">Buat akun & tambahkan</button>`);
   o.querySelector('#mx').onclick = closeModal;
   o.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => {
     const nm = o.querySelector('#in_n').value.trim(); if (!nm) return toast('Nama wajib diisi', 'err');
