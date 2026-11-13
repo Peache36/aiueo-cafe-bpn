@@ -1,0 +1,65 @@
+AIUEO CAFE - Supabase + Netlify
+================================
+Situs: https://app-aiueo-cafe-bpn.netlify.app/
+
+ISI PAKET
+- index.html, app.js, app.css, sw.js, manifest, img/   -> tampilan aplikasi
+- netlify/functions/api.js, cron.mjs, push.js          -> server
+- netlify/lib/                                         -> logika (ikut terbundel)
+- schema.sql                                           -> tabel Supabase
+- keygen.html                                          -> pembuat kunci Push (hapus setelah dipakai)
+
+LANGKAH 1 - SUPABASE
+1. Buat project (boleh pakai project absensi: semua tabel berawalan "aiueo_").
+   PENTING: pilih region sedekat region fungsi Netlify. Default fungsi Netlify
+   = US East (Ohio). Tiap aksi memanggil database 4-20 kali, jadi region yang
+   jauh membuat aplikasi lambat.
+2. Buka SQL Editor, tempel seluruh isi schema.sql, klik Run (aman diulang).
+3. Buka Project Settings > API, catat:
+   - Project URL
+   - Secret / service_role key  (RAHASIA)
+   - Publishable / anon key
+
+LANGKAH 2 - NETLIFY
+1. Deploy folder ini ke situs app-aiueo-cafe-bpn. Disarankan lewat Git atau
+   Netlify CLI (netlify deploy --prod) agar folder functions ikut terpasang.
+   Drag-and-drop bisa tidak memuat functions.
+2. Site configuration > Environment variables, isi:
+   SUPABASE_URL          = Project URL
+   SUPABASE_SERVICE_KEY  = secret/service key (jangan ditaruh di file lain)
+   SUPABASE_ANON_KEY     = publishable/anon key
+   ADMIN_PHONE           = nomor WA admin (contoh 6281234567890)
+   FONNTE_TOKEN          = token Fonnte untuk kirim OTP WA
+   DEBUG_OTP             = 1 (HANYA saat uji; OTP tampil di log fungsi. Hapus setelah live)
+   VAPID_PUBLIC, VAPID_PRIVATE, VAPID_SUBJECT (mailto:email-anda), PUSH_SECRET
+                         -> untuk notifikasi push (buat di /keygen.html)
+3. Deploy ulang setelah env diisi.
+
+LANGKAH 3 - CEK
+- /api?ping=1  -> harus {"ok":true,...}. Jika db_ms tinggi (>300) berarti
+  region Supabase dan Netlify tidak cocok. Jika ada pesan "jalankan schema.sql",
+  ulangi langkah Supabase no. 2.
+- /.netlify/functions/push -> "configured":true bila VAPID sudah terbaca.
+- Login pertama dengan ADMIN_PHONE otomatis menjadi admin.
+
+PASANG DI HP
+- Android: menu Chrome > Pasang aplikasi (atau kartu "Pasang sebagai aplikasi" di Profil).
+- iPhone: Safari > Bagikan > Tambah ke Layar Utama. Push butuh iOS 16.4+ dan
+  harus dibuka dari ikon Layar Utama.
+
+FITUR BARU (v7.1)
+- ID rapi & berurutan: USR-0001, PTY-0001, VST-0001, dst (penghitung di database).
+- Undang nomor WA yang belum terdaftar: nomor dicek ke Fonnte (/validate), akun dibuat otomatis
+  dari nama yang diisi ketua. Tombol "Periksa ulang" diberi jeda 30 detik dan maks 12 cek/jam per ketua.
+  Jika paket Fonnte Anda tidak punya fitur validate, pengecekan akan gagal dengan pesan error (nomor tidak bisa diundang).
+- Jeda perubahan Party (anggota + ganti nama): bawaan reset tiap tanggal 1. Admin bisa isi
+  "Jeda perubahan Party (hari)" di Aturan & Tampilan, dan mereset jeda per orang / semua di kartu "Jeda Perubahan Party".
+- Admin: ekspor CSV, log aktivitas admin, batalkan input stamp/VP, cadangan CSV otomatis tiap Senin (simpan 4 minggu).
+- Kasir: saran pelanggan saat mengetik nama/username/4 digit nomor.
+- Pengingat otomatis "Stamp hampir penuh" (atur di kartu pengingat), mode gelap otomatis.
+- Jika sebelumnya schema.sql sudah dijalankan: jalankan ulang versi terbaru (aman diulang).
+
+LAIN-LAIN
+- Cron harian 09:00 WITA (pengingat otomatis & pembersihan) jalan otomatis di production.
+- Hapus keygen.html setelah kunci dibuat.
+- Apps Script lama (Kode.gs, AppCode.gs, Index.html) tidak dipakai lagi.

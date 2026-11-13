@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>AIUEO Cafe</title>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#181d1a" media="(prefers-color-scheme: dark)">
+<meta name="application-name" content="AIUEO Cafe">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AIUEO Cafe">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2)" href="img/splash-iphone-se.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:736px) and (-webkit-device-pixel-ratio:3)" href="img/splash-iphone-8plus.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3)" href="img/splash-iphone-x.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2)" href="img/splash-iphone-xr.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3)" href="img/splash-iphone-xs-max.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)" href="img/splash-iphone-12.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3)" href="img/splash-iphone-14pro.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3)" href="img/splash-iphone-pro-max.png">
+<link rel="stylesheet" href="app.css">
+<style>
+/* gaya minimum agar layar peluncuran langsung tampil sebelum app.css selesai dimuat */
+html,body{margin:0;background:#fff}
+#splash{position:fixed;inset:0;z-index:200;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px}
+#splash img{width:min(60vw,300px);height:auto}
+</style>
+</head>
+<body>
+<div id="splash"><img src="img/logo.png" alt="AIUEO Cafe" width="300" height="262"><div class="dots"><i></i><i></i><i></i><i></i></div></div>
+<div id="netbar"></div><div id="blocker"><div class="box"><span class="sp"></span>Memproses…</div></div>
+<div id="app"></div>
+<div id="toast"></div>
+<script>
+/* Jika aplikasi gagal berjalan, tampilkan pesan + lokasi kesalahan (bukan layar kosong). */
+window.addEventListener('error', function (e) {
+  var s = document.getElementById('splash'), a = document.getElementById('app');
+  if (s && !s.classList.contains('hide') && a && !a.children.length) {
+    s.classList.add('hide');
+    a.innerHTML = '<div style="padding:28px;text-align:center;font:14px system-ui"><b>Gagal memuat aplikasi</b><br><small>' + String(e.message).replace(/</g, '&lt;') + ' (baris ' + e.lineno + ')</small><br><br><button onclick="location.reload()" style="padding:10px 18px">Muat ulang</button></div>';
+  }
+});
+</script>
+<script src="config.js"></script>
+<script src="shim.js"></script>
+<script src="app.js"></script>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });</script>
+</body>
+</html>
