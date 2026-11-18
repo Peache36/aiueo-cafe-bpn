@@ -93,3 +93,25 @@ LAIN-LAIN
 
 === v7.6 ===
 - Admin > Sistem > Aturan & Tampilan: teks WA kode login dan WA undangan Party (nomor baru) bisa diedit. Isian otomatis: kode login {kafe} {kode} {menit}; undangan {nama} {ketua} {grup} {kafe} {link}. Kolom dikosongkan tidak bisa disimpan; bila terhapus, teks bawaan dipakai.
+
+=== v7.7 ===
+- Hall of Fame didesain ulang (hero hijau, tab papan, podium Top 3 dengan mahkota, peringkat 4–10, pergerakan peringkat 7 hari: ▲ naik, ▼ turun, – tetap, BARU). Geser kiri/kanan, panah, atau titik untuk ganti papan.
+- Papan: Total VP, VP Bulan Ini, Event (medali turnamen 🥇🥈🥉), lalu tiap game Hall of Fame.
+- Hall of Fame kini juga ada untuk Kasir, GM, dan Admin (tab HoF). Customer: tombol Catat skor meja + konfirmasi. Kasir/GM: jumlah skor menunggu persetujuan + Catat skor (staf). Admin: + Atur game HoF dan Batalkan skor.
+- Font Fraunces & DM Sans dimuat dari Google Fonts (cadangan: Georgia/system).
+
+=== v7.8 ===
+- Seluruh aplikasi memakai gaya Hall of Fame: latar krem bertitik, kartu kertas, judul serif (Fraunces), teks DM Sans, warna Deep Forest #12342E + aksen terakota & kuningan, tombol bulat, tab/segmen berbentuk ubin. Navbar tetap di atas.
+- Kepala halaman hijau: besar untuk menu pelanggan (Party, Discover, Profil), ramping untuk menu staf (Kasir, Aktivitas, Event, Katalog Game, Admin) agar ruang kerja tetap lega. Beranda tanpa kepala (langsung kartu tier), Hall of Fame punya hero sendiri.
+- Warna tema bawaan lama (#16A34A) otomatis diganti Deep Forest. Admin tetap bisa memilih warna lain di Aturan & Tampilan.
+- Mode gelap ikut disesuaikan (hijau tua).
+
+=== v7.9 ===
+- Kartu Tier kembali memakai warna tier lama (warna diatur admin per tier).
+- Bilah atas pelanggan: kode member + nama Party (bila tergabung), mis. "LS-XXXX • 🎲 Elang Board".
+- Party: SEMUA anggota (bukan hanya ketua) bisa mengundang teman.
+- Batalkan (salah nomor): dalam 30 menit sejak anggota ditambahkan/menerima undangan, ketua atau orang yang mengundangnya bisa menekan "Batalkan". Gratis (tidak memakai jatah), dan akun otomatis yang belum pernah dipakai ikut dinonaktifkan sehingga nomornya bebas lagi.
+- Keluarkan: lewat 30 menit, hanya ketua yang bisa mengeluarkan anggota; memakai 1 jatah perubahan milik ketua. Anggota yang dikeluarkan dapat notifikasi dan bebas bergabung ke Party lain (jatahnya tidak terpakai).
+- Undangan yang belum diterima tampil di "Menunggu diterima" dan bisa dibatalkan ketua atau pengundangnya.
+- Lonceng notifikasi kini ikon garis seperti ikon navbar (bukan emoji 3D); angka belum dibaca berupa titik terakota.
+- Nama grup tidak bisa dobel: perbedaan huruf besar/kecil, spasi, dan tanda baca diabaikan ("Elang Board" = "elang-board" = "ElangBoard"). Nama yang sedang diajukan grup lain untuk ganti nama juga dianggap terpakai. Minimal 3 huruf/angka.

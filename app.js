@@ -5,6 +5,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl = u => /^https?:[/][/]/i.test(u || '') ? u : '';
 const ICON = {
+  bell:'<svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
   home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
   clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
@@ -114,7 +115,7 @@ async function run(btn, fn){
   try { return await fn(); } catch(e){ handleErr(e); }
   finally { if (btn){ btn._busy = false; btn.disabled = false; btn.classList.remove('loading'); } }
 }
-function applyTheme(c){ if (/^#[0-9a-f]{6}$/i.test(c || '')) document.documentElement.style.setProperty('--primary', c); }
+function applyTheme(c){ if (/^#[0-9a-f]{6}$/i.test(c || '') && c.toUpperCase() !== '#16A34A') document.documentElement.style.setProperty('--primary', c); }  /* warna lama bawaan diabaikan → pakai Deep Forest */
 /* pasang ke layar utama (PWA) */
 let deferredInstall = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
@@ -281,9 +282,9 @@ function loginStep2(r){
 /* ============================ SHELL ============================ */
 function tabsFor(role){
   if (role === 'customer') return [['home','Beranda','home'],['party','Party','group'],['disc','Discover','game'],['champ','Hall of Fame','trophy'],['me','Profil','user']];
-  if (role === 'cashier')  return [['kasir','Kasir','scan'],['visit','Aktivitas','cal'],['disc','Game','game'],['me','Profil','user']];
-  if (role === 'gm')       return [['visit','Aktivitas','cal'],['disc','Game','game'],['me','Profil','user']];
-  return [['kasir','Kasir','scan'],['visit','Aktivitas','cal'],['events','Event','cal'],['gadm','Game','game'],['admin','Admin','gear'],['me','Profil','user']];
+  if (role === 'cashier')  return [['kasir','Kasir','scan'],['visit','Aktivitas','cal'],['champ','Hall of Fame','trophy'],['disc','Game','game'],['me','Profil','user']];
+  if (role === 'gm')       return [['visit','Aktivitas','cal'],['champ','Hall of Fame','trophy'],['disc','Game','game'],['me','Profil','user']];
+  return [['kasir','Kasir','scan'],['visit','Aktivitas','cal'],['champ','HoF','trophy'],['events','Event','cal'],['gadm','Game','game'],['admin','Admin','gear'],['me','Profil','user']];
 }
 const ROLE_LABEL = {customer:'Member', cashier:'Kasir', gm:'GM', admin:'Admin'};
 
@@ -293,12 +294,12 @@ function buildShell(){
   /* bilah atas + tab berada di ATAS layar; bagian bawah sengaja kosong (tertutup watermark Netlify) */
   $('#app').innerHTML = `<div class="chrome">
       <div class="appbar">${LOGO.replace('<img', '<img class="lg"')}
-        <div class="who"><small>Halo,</small><b>${esc(u.username || u.name)}</b>${u.role === 'customer' ? `<span class="mc">${esc(u.memberCode)}</span>` : ''}</div>
-        ${u.role === 'customer' ? '<button class="bell" id="bell" aria-label="Notifikasi">🔔<i id="bcnt"></i></button>' : ''}<span class="role">${ROLE_LABEL[u.role]}</span></div>
+        <div class="who"><small>Halo,</small><b>${esc(u.username || u.name)}</b>${u.role === 'customer' ? `<span class="mc">${esc(u.memberCode)}<span id="ptn"></span></span>` : ''}</div>
+        ${u.role === 'customer' ? '<button class="bell" id="bell" aria-label="Notifikasi">' + ICON.bell + '<i id="bcnt"></i></button>' : ''}<span class="role">${ROLE_LABEL[u.role]}</span></div>
       <nav class="nav">${tabs.map(t => `<button data-tab="${t[0]}">${ICON[t[2]]}<span>${t[1]}</span></button>`).join('')}<i class="ind"></i></nav>
     </div>
-    <div class="shell"><main id="view"></main></div>`;
-  if (u.role === 'customer'){ setBell(S.view ? S.view.notif : 0); $('#bell').onclick = openInbox; }
+    <div class="shell"><div id="phead"></div><main id="view"></main></div>`;
+  if (u.role === 'customer'){ setBell(S.view ? S.view.notif : 0); setPartyName(S.view && S.view.party); $('#bell').onclick = openInbox; }
   $('.nav').onclick = e => { const b = e.target.closest('button'); if (b) go(b.dataset.tab); };
   go(tabs[0][0]);
   startPoll(); hideSplash();
@@ -312,8 +313,24 @@ function moveInd(){
   if (lo < nav.scrollLeft) nav.scrollTo({left: lo, behavior: 'smooth'}); else if (hi > nav.scrollLeft + nav.clientWidth) nav.scrollTo({left: hi - nav.clientWidth, behavior: 'smooth'});
 }
 
+const PAGE_HEAD = {
+  party:  ['Main Bareng', 'Party Play', 'Kumpulkan stamp dan VP bersama satu meja.', 1],
+  disc:   ['Rak Game AIUEO', 'Discover', 'Cari game yang cocok untuk mejamu malam ini.', 1],
+  me:     ['Akun Kamu', 'Profil', 'Badge, koleksi, dan riwayat bermainmu.', 1],
+  kasir:  ['Meja Kasir', 'Kasir', 'Scan QR atau cari member.', 0],
+  visit:  ['Lantai Kafe', 'Aktivitas', 'Catat kunjungan, game, dan skor.', 0],
+  events: ['Kalender AIUEO', 'Event', 'Turnamen, meetup, dan banner Beranda.', 0],
+  gadm:   ['Rak Game', 'Katalog Game', 'Atur game, mekanik, dan Hall of Fame.', 0],
+  admin:  ['Ruang Kendali', 'Admin', 'Pengaturan AIUEO Board Game Cafe.', 0]
+};
+function pageHead(tab){
+  const el = $('#phead'); if (!el) return;
+  const h = PAGE_HEAD[tab];
+  if (!h || (tab === 'disc' && S.user.role !== 'customer')){ el.innerHTML = ''; return; }
+  el.innerHTML = `<header class="phead ${h[3] ? '' : 'slim'}">${h[3] ? '<i class="orn o1"></i><i class="orn o3"></i>' : ''}<p class="eyebrow">${esc(h[0])}</p><h1>${esc(h[1])}</h1>${h[3] ? `<p class="lede">${esc(h[2])}</p>` : ''}</header>`;
+}
 function go(tab){
-  S.tab = tab;
+  S.tab = tab; pageHead(tab);
   document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   moveInd();
   window.scrollTo(0, 0);
@@ -483,7 +500,7 @@ function applyView(nv, animate){
     readyUp = readyCount(nv) > readyCount(S.view);
   }
   const notifUp = animate && S.view && (nv.notif || 0) > (S.view.notif || 0);
-  S.view = nv; S.animFrom = from; setBell(nv.notif || 0);
+  S.view = nv; S.animFrom = from; setBell(nv.notif || 0); setPartyName(nv.party);
   if (S.tab === 'home') viewHome(); else if (S.tab === 'hist') viewHistory();
   S.animFrom = null;
   if (added > 0) stampFx(added, readyUp); else if (readyUp) toast('🎁 Reward siap ditukar!', 'ok');
@@ -1124,37 +1141,98 @@ const C = {tab: 'game', board: 'all', big: false};
 const modeLabel = m => m === 'sum' ? 'Akumulasi poin' : 'Skor tertinggi';
 const fmtScore = n => Number(n).toLocaleString('id-ID');
 const medal = r => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : r;
+/* ============================ HALL OF FAME (desain podium) ============================ */
+const HOF_COLORS = ['#C66F4B','#2F6B5B','#D4A54D','#6B5B95','#3E7CB1','#B5485D','#5E8C31','#8A6A4F'];
+function hofAvColor(n){ let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return HOF_COLORS[h % HOF_COLORS.length]; }
+function hofAv(n, cls){ return `<span class="hav ${cls || ''}" style="background:${hofAvColor(n)}">${esc(String(n || '?').slice(0, 2).toUpperCase())}</span>`; }
+const LAUREL = side => `<svg class="laurel ${side}" viewBox="0 0 40 80" aria-hidden="true"><path d="M30 76C14 62 8 42 14 8" fill="none" stroke="currentColor" stroke-width="2"/>${[14,26,38,50,62].map((y, i) => `<ellipse cx="${20 - i * .6}" cy="${y}" rx="7" ry="3.2" transform="rotate(${-35 + i * 4} ${20 - i * .6} ${y})" fill="currentColor"/><ellipse cx="${10 + i * 1.6}" cy="${y + 5}" rx="6" ry="2.8" transform="rotate(${40 - i * 3} ${10 + i * 1.6} ${y + 5})" fill="currentColor" opacity=".8"/>`).join('')}</svg>`;
+const CROWN = '<svg class="crown" viewBox="0 0 32 20" aria-hidden="true"><path d="M2 18 4 5l7 6 5-9 5 9 7-6 2 13z" fill="#D4A54D" stroke="#9b7426" stroke-width="1"/><circle cx="16" cy="3" r="1.8" fill="#fff3c9"/></svg>';
+function hofMove(m){
+  if (m === 'new') return '<span class="mv new" aria-label="Masuk baru">Baru</span>';
+  if (m > 0) return `<span class="mv up" aria-label="Naik ${m} peringkat">▲${m}</span>`;
+  if (m < 0) return `<span class="mv down" aria-label="Turun ${-m} peringkat">▼${-m}</span>`;
+  return '<span class="mv same" aria-label="Tetap">–</span>';
+}
+function hofScore(b, i){
+  if (b.kind === 'event') return `<span class="medals">${i.medals.g ? '🥇' + i.medals.g : ''}${i.medals.s ? ' 🥈' + i.medals.s : ''}${i.medals.b ? ' 🥉' + i.medals.b : ''}</span>`;
+  return `${fmtScore(i.score)}<small> ${esc(b.metric)}</small>`;
+}
 async function viewChampion(){
-  $('#view').innerHTML = `<div class="seg"><button data-t="game" class="${C.tab==='game'?'on':''}">Game</button><button data-t="vp" class="${C.tab==='vp'?'on':''}">Peringkat VP</button></div><div id="hb"><div class="spin">Memuat…</div></div>`;
-  document.querySelector('.seg').onclick = e => { const b = e.target.closest('[data-t]'); if (b){ C.tab = b.dataset.t; viewChampion(); } };
-  try { await (C.tab === 'vp' ? hofVp() : hofGames()); } catch(e){ handleErr(e); }
+  $('#view').innerHTML = '<div class="spin">Memuat…</div>';
+  try {
+    const role = S.user.role, cust = role === 'customer';
+    const [d, pend] = await Promise.all([call('hof_boards'), cust ? call('score_pending') : Promise.resolve(null)]);
+    C.boards = d.boards;
+    if (!C.key || !d.boards.some(b => b.key === C.key)) C.key = d.boards[0].key;
+    const peerGames = d.boards.filter(b => b.kind === 'game' && b.entry === 'peer');
+    const roleBar = cust
+      ? `<div class="hof-role"><button class="hbtn" id="hsc2" ${peerGames.length ? '' : 'disabled'}>＋ Catat skor meja</button><span>Selesai main? Catat skormu, lalu teman semeja mengonfirmasi.</span></div><div id="hp"></div>`
+      : `<div class="hof-role staff">${d.review ? `<button class="hbtn warn" id="hrv">${d.review} skor menunggu persetujuan ›</button>` : '<span>✓ Tidak ada skor yang menunggu persetujuan</span>'}
+          <div class="row" style="gap:6px;flex-wrap:wrap"><button class="hbtn ghost" id="hst">Catat skor (staf)</button>${role === 'admin' ? '<button class="hbtn ghost" id="hset">Atur game HoF</button><button class="hbtn ghost" id="hvoid">Batalkan skor</button>' : ''}</div></div>`;
+    $('#view').innerHTML = `<div class="hof2">
+      <header class="hof-hero">${LAUREL('l')}${LAUREL('r')}<i class="orn o1"></i><i class="orn o2"></i><i class="orn o3"></i>
+        <p class="eyebrow">Legenda Meja AIUEO</p><h1>Hall of Fame</h1>
+        <p class="lede">Para juara meja AIUEO Board Game Cafe. Main, menang, dan tulis namamu di papan.</p></header>
+      ${roleBar}
+      <nav class="hof-tabs" role="tablist" id="htabs">${d.boards.map(b => `<button role="tab" data-k="${esc(b.key)}" aria-selected="${b.key === C.key}" class="${b.kind === 'event' ? 'ev' : ''}">${esc(b.tab)}</button>`).join('')}</nav>
+      <div id="hboard"></div>
+      <p class="hof-swipe">⇠ Geser untuk ganti papan ⇢</p><div class="hof-dots" id="hdots"></div>
+      <footer class="hof-foot">${LAUREL('l')}<p>Main jujur. Berpikir berani.<br>Satu ronde lagi, yuk.</p>${LAUREL('r')}</footer></div>`;
+    drawBoard(false);
+    if (pend) drawPending(pend);
+    $('#htabs').onclick = e => { const t = e.target.closest('[data-k]'); if (t){ C.key = t.dataset.k; drawBoard(true); } };
+    bindSwipe($('#hboard'));
+    const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
+    on('hsc2', () => {
+      if (peerGames.length === 1) return scoreForm({id: peerGames[0].gid, name: peerGames[0].title});
+      const o = openModal(`<div class="row between"><h3>Game apa yang dimainkan?</h3><button class="x" id="mx">×</button></div><div class="list">${peerGames.map(g => `<div data-pg="${esc(g.gid)}" style="cursor:pointer">${hofAv(g.title)}<div class="t"><b>${esc(g.title)}</b><small>${esc(g.category)}</small></div><span>›</span></div>`).join('')}</div>`);
+      o.querySelector('#mx').onclick = closeModal;
+      o.onclick = e => { const x = e.target.closest('[data-pg]'); if (x){ const g = peerGames.find(q => q.gid === x.dataset.pg); closeModal(); scoreForm({id: g.gid, name: g.title}); } };
+    });
+    on('hrv', () => { V.mode = 'game'; go('visit'); });
+    on('hst', () => { V.mode = 'game'; go('visit'); });
+    on('hset', () => go('gadm'));
+    on('hvoid', ev => run(ev.currentTarget, async () => scoreRoundsModal(await call('score_rounds'))));
+    const hp = $('#hp');
+    if (hp) hp.onclick = e => {
+      const c = e.target.closest('[data-pc]');
+      if (c) run(c, async () => { const r = await call('score_confirm', {roundId: c.dataset.pc, ok: c.dataset.ok === '1'}); drawPending(r); toast(c.dataset.ok === '1' ? 'Dikonfirmasi' : 'Ditolak', 'ok'); });
+    };
+  } catch(e){ handleErr(e); }
 }
-async function hofVp(){
-  const d = await call('leaderboard', {board: C.board, limit: C.big ? 50 : 10});
-  $('#hb').innerHTML = `<div class="seg" id="vs"><button data-b="all" class="${C.board==='all'?'on':''}">Total VP</button><button data-b="month" class="${C.board==='month'?'on':''}">VP bulan ini</button></div>
-    ${d.items.length >= 3 ? `<section class="card podium">${[1, 0, 2].map(k => { const i = d.items[k]; return `<div class="pd p${k + 1}"><span class="av">${esc(i.username.slice(0, 1).toUpperCase())}</span><b>${esc(i.username)}</b><small>${i.vp} VP</small><div class="pb">${medal(i.rank)}</div></div>`; }).join('')}</section>` : ''}
-    <section class="card"><div class="list">${(d.items.length >= 3 ? d.items.slice(3) : d.items).length ? (d.items.length >= 3 ? d.items.slice(3) : d.items).map(i => `<div class="${i.me ? 'me' : ''}"><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}${i.me ? ' (kamu)' : ''}</b></div><b>${i.vp} VP</b></div>`).join('')
-      : d.items.length ? '<div class="empty">Top 3 ada di podium 👆</div>' : '<div class="empty">Belum ada peringkat. Main dulu, yuk!</div>'}</div>
-    ${!C.big && d.total > 10 ? '<div class="center"><button class="link" id="lb50">Lihat 50 teratas</button></div>' : ''}</section>
-    ${d.me ? `<p class="center hint">Peringkat kamu: <b>#${d.me.rank}</b> dari ${d.total} • ${d.me.vp} VP</p>` : '<p class="center hint">Kamu belum masuk peringkat — kumpulkan VP dengan bermain.</p>'}`;
-  $('#vs').onclick = e => { const b = e.target.closest('[data-b]'); if (b){ C.board = b.dataset.b; C.big = false; viewChampion(); } };
-  const m = $('#lb50'); if (m) m.onclick = () => { C.big = true; viewChampion(); };
+function drawBoard(anim){
+  const boards = C.boards, idx = Math.max(0, boards.findIndex(b => b.key === C.key)), b = boards[idx];
+  document.querySelectorAll('#htabs [data-k]').forEach(t => t.setAttribute('aria-selected', String(t.dataset.k === C.key)));
+  const tab = document.querySelector(`#htabs [data-k="${CSS.escape(C.key)}"]`); if (tab) tab.scrollIntoView({block: 'nearest', inline: 'center', behavior: anim ? 'smooth' : 'auto'});
+  const top = b.items.slice(0, 3), rest = b.items.slice(3);
+  const pod = k => { const i = top[k]; if (!i) return '<div class="pod empty"></div>';
+    return `<div class="pod p${k + 1} ${i.me ? 'me' : ''}">${k === 0 ? CROWN : ''}${hofAv(i.username, 'lg')}<span class="medal m${i.rank}">${i.rank}</span><b>${esc(i.username)}</b><span class="ps">${hofScore(b, i)}</span>${hofMove(i.move)}</div>`; };
+  const meOut = b.me && !b.items.some(i => i.me);
+  $('#hboard').innerHTML = `<section class="hof-card ${anim ? 'rise' : ''}">
+    <div class="hof-head"><button class="rnd" id="hprev" aria-label="Papan sebelumnya" ${idx === 0 ? 'disabled' : ''}>‹</button>
+      <div class="hh"><p class="cat">${esc(b.category)}</p><h2>${b.gid ? gameLink(b.gid, b.title) : esc(b.title)}</h2><p class="sub">${esc(b.sub)} • ${esc(b.metric)}</p></div>
+      <button class="rnd" id="hnext" aria-label="Papan berikutnya" ${idx === boards.length - 1 ? 'disabled' : ''}>›</button></div>
+    ${b.items.length ? `<div class="podium2">${pod(1)}${pod(0)}${pod(2)}</div>
+      <ol class="hof-list">${rest.map(i => `<li class="${i.me ? 'me' : ''}"><span class="rn">${i.rank}</span>${hofAv(i.username)}<span class="nm"><b>${esc(i.username)}${i.me ? ' (kamu)' : ''}</b></span><span class="sc">${hofScore(b, i)}</span>${hofMove(i.move)}</li>`).join('')}</ol>`
+      : `<div class="empty" style="padding:28px 8px">${b.kind === 'event' ? 'Belum ada juara turnamen. Ikuti event berikutnya!' : 'Belum ada skor di papan ini. Jadilah yang pertama!'}</div>`}
+    ${meOut ? `<div class="hof-me">Posisimu <b>#${b.me.rank}</b> dari ${b.total} • ${b.kind === 'event' ? b.me.score + ' poin medali' : fmtScore(b.me.score) + ' ' + esc(b.metric)}</div>` : ''}
+    ${b.kind === 'game' ? `<button class="link center" id="hdet" style="display:block;margin:10px auto 0">Lihat 50 teratas & juara sebelumnya</button>` : ''}
+  </section>`;
+  const dots = $('#hdots');
+  dots.innerHTML = boards.length <= 8 ? boards.map((x, i) => `<button aria-label="Papan ${i + 1}: ${esc(x.tab)}" class="${i === idx ? 'on' : ''}" data-i="${i}"></button>`).join('') : `<span>${idx + 1} / ${boards.length}</span>`;
+  dots.onclick = e => { const x = e.target.closest('[data-i]'); if (x){ C.key = boards[+x.dataset.i].key; drawBoard(true); } };
+  const step = n => { const j = idx + n; if (j >= 0 && j < boards.length){ C.key = boards[j].key; drawBoard(true); } };
+  $('#hprev').onclick = () => step(-1); $('#hnext').onclick = () => step(1);
+  C.step = step;
+  const det = $('#hdet'); if (det) det.onclick = () => run(det, () => hofDetail(b.gid));
 }
-async function hofGames(){
-  const [d, pend] = await Promise.all([call('hof_overview'), call('score_pending')]);
-  S.hof = d.games;
-  $('#hb').innerHTML = `<div id="hp"></div>` + (d.games.length ? d.games.map(g => `<section class="card hof" data-g="${esc(g.id)}" style="cursor:pointer">
-      <div class="row between"><h3 style="margin:0">${gameLink(g.id, g.name)}</h3><span class="pill">${modeLabel(g.mode)}</span></div>
-      <p class="hint" style="margin:2px 0 8px;font-size:12px">${esc(g.label)} • ${g.total} pemain${g.entry === 'staff' ? ' • dicatat staf' : ''}</p>
-      <div class="list">${g.top.length ? g.top.map(i => `<div><span class="rk">${medal(i.rank)}</span><div class="t"><b>${esc(i.username)}</b></div><b>${fmtScore(i.score)}</b></div>`).join('') : '<div class="empty">Belum ada skor. Jadilah yang pertama!</div>'}</div>
-      ${g.me ? `<p class="hint" style="margin:8px 0 0;font-size:12px">Kamu: <b>#${g.me.rank}</b> • ${fmtScore(g.me.score)}</p>` : ''}</section>`).join('')
-    : '<section class="card"><div class="empty">Belum ada game di Hall of Fame. Admin bisa menambahkannya dari Katalog Game.</div></section>');
-  drawPending(pend);
-  $('#hb').onclick = e => {
-    const c = e.target.closest('[data-pc]');
-    if (c) return run(c, async () => { const r = await call('score_confirm', {roundId: c.dataset.pc, ok: c.dataset.ok === '1'}); drawPending(r); toast(c.dataset.ok === '1' ? 'Dikonfirmasi' : 'Ditolak', 'ok'); if (c.dataset.ok === '1') hofGames(); });
-    const g = e.target.closest('[data-g]'); if (g) run(null, () => hofDetail(g.dataset.g));
-  };
+function bindSwipe(el){
+  let x0 = null, y0 = 0;
+  el.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, {passive: true});
+  el.addEventListener('touchend', e => {
+    if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.3) C.step(dx < 0 ? 1 : -1);
+  }, {passive: true});
 }
 function drawPending(p){
   const el = $('#hp'); if (!el) return;
@@ -1188,11 +1266,11 @@ function bindScoreAdd(root, max){
 }
 function scoreForm(g){
   const o = openModal(`<div class="row between"><h3>Catat skor ${esc(g.name)}</h3><button class="x" id="mx">×</button></div>
-    <p class="hint" style="margin:0 0 8px;font-size:12px">Isi semua pemain di meja dan skornya. Pemain lain akan diminta mengonfirmasi di HP mereka. Semua pemain harus sudah check-in hari ini.</p>
+    <p class="hint" style="margin:0 0 8px;font-size:12px">Isi semua pemain di meja dan skornya. Pemain lain akan diminta mengonfirmasi di HP mereka. Skor yang masuk Top 3 bisa perlu persetujuan staf.</p>
     ${scoreRows(12, S.user.username)}<button class="btn" id="fs">Kirim untuk dikonfirmasi</button>`);
   o.querySelector('#mx').onclick = closeModal; bindScoreAdd(o, 12);
   o.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => {
-    await call('score_submit', {gameId: g.id, players: readScoreRows(o)}); closeModal(); toast('Terkirim, menunggu konfirmasi pemain lain', 'ok'); viewChampion();
+    await call('score_submit', {gameId: g.id, players: readScoreRows(o)}); closeModal(); toast('Terkirim, menunggu konfirmasi pemain lain', 'ok'); if (S.tab === 'champ') viewChampion();
   });
 }
 
@@ -1325,7 +1403,7 @@ async function viewParty(){
   try { renderParty(await call('group_my')); } catch(e){ handleErr(e); }
 }
 function renderParty(d){
-  S.party = d;
+  S.party = d; setPartyName(d.group ? {name: d.group.name} : null);
   const g = d.group;
   let h = '';
   if (d.invites.length) h += `<section class="card"><h3>Undangan</h3><div class="list">${d.invites.map(i => `<div><div class="t"><b>${esc(i.group)}</b><small>dari @${esc(i.from)}</small></div>
@@ -1342,9 +1420,10 @@ function renderParty(d){
         ? (g.firstVisit ? `Kunjungan pertama: <b>semua ${g.n} anggota</b> harus hadir.` : `Kunjungan berikutnya: minimal <b>${g.required} dari ${g.n}</b> anggota hadir.`) + ' Diskon hanya untuk yang hadir, dikonfirmasi kasir.'
         : `Butuh minimal ${d.rules.min} anggota agar diskon aktif.${g.daysLeft != null ? ` Sisa waktu <b>${g.daysLeft} hari</b> sebelum grup dibubarkan.` : ''}`}</p>
       <div class="list">${g.members.map(m => `<div><span class="ico">${m.isKid ? '🧒' : m.isLeader ? '👑' : '👤'}</span><div class="t"><b>${esc(m.label)}${m.isMe ? ' (kamu)' : ''}</b><small>${m.isLeader ? 'Ketua' : m.isKid ? 'Anak' : 'Anggota'}</small></div>
-        ${m.isKid && m.mine ? `<button class="link" data-kr="${esc(m.id)}">Hapus</button>` : ''}</div>`).join('')}</div></section>
-      ${g.isLeader ? `<section class="card"><h3>Undang anggota</h3><div class="row"><input id="iu" placeholder="username atau no. WhatsApp teman" autocapitalize="none"><button class="btn sm" id="ig">Undang</button></div>
-        <p class="hint" style="font-size:12px;margin:8px 0 0">Bisa pakai username, atau nomor WhatsApp. Kalau nomornya belum punya akun, akun dibuatkan otomatis dan temanmu langsung jadi anggota tanpa perlu login dulu. Untuk akun yang sudah ada, baru terhitung anggota setelah menerima.</p></section>` : ''}
+        ${m.isKid && m.mine ? `<button class="link" data-kr="${esc(m.id)}">Hapus</button>` : m.undo ? `<button class="link" data-kk="${esc(m.id)}" data-f="1">Batalkan <small>(${m.undoLeft} mnt)</small></button>` : m.kick ? `<button class="link" data-kk="${esc(m.id)}">Keluarkan</button>` : ''}</div>`).join('')}</div>
+      ${g.pending && g.pending.length ? `<h3 style="margin-top:14px;font-size:15px">Menunggu diterima</h3><div class="list">${g.pending.map(x => `<div><span class="ico">✉️</span><div class="t"><b>${esc(x.label)}</b><small>diundang @${esc(x.by)}</small></div>${x.cancel ? `<button class="link" data-ic="${esc(x.id)}">Batalkan</button>` : ''}</div>`).join('')}</div>` : ''}</section>
+      ${true ? `<section class="card"><h3>Undang anggota</h3><div class="row"><input id="iu" placeholder="username atau no. WhatsApp teman" autocapitalize="none"><button class="btn sm" id="ig">Undang</button></div>
+        <p class="hint" style="font-size:12px;margin:8px 0 0">Bisa pakai username, atau nomor WhatsApp. Kalau nomornya belum punya akun, akun dibuatkan otomatis dan temanmu langsung jadi anggota tanpa perlu login dulu. Untuk akun yang sudah ada, baru terhitung anggota setelah menerima. Salah nomor? Tekan <b>Batalkan</b> di daftar anggota dalam 30 menit.</p></section>` : ''}
       <section class="card"><h3>Anak (tanpa akun)</h3><div class="row"><input id="kn" maxlength="40" placeholder="nama anak"><button class="btn sm" id="kg">Tambah</button></div>
         <p class="hint" style="font-size:12px;margin:8px 0 0">Anak ikut grupmu, dihitung sebagai anggota, dan kehadirannya dikonfirmasi kasir.</p></section>
       <section class="card">${d.canChange ? '<button class="btn danger" id="gl">Keluar dari grup</button>' + (d.quota && d.quota.mode === 'month' ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Keluar atau pindah grup dibatasi 1 kali per bulan, reset tiap tanggal 1. Menambah anggota bebas kapan saja.</p>' : '') : quotaNotice(d.quota)}</section>`;
@@ -1358,6 +1437,13 @@ function renderParty(d){
     const kid = S.party.kids.find(k => 'Anak: ' + k.name === m.label);
     if (kid && await askConfirm('Hapus ' + m.label + ' dari grup?', 'Hapus')) act(null, 'group_kid_remove', {kidId: kid.id});
   });
+  document.querySelectorAll('[data-kk]').forEach(b => b.onclick = async () => {
+    const m = S.party.group.members.find(x => x.id === b.dataset.kk);
+    const q = b.dataset.f ? `Batalkan penambahan ${m.label}? Tidak memakai jatah perubahan. Bila akunnya dibuat otomatis dan belum pernah dipakai, akun itu ikut dihapus.`
+      : `Keluarkan ${m.label} dari grup? Ini memakai 1 jatah perubahan Party milikmu.`;
+    if (await askConfirm(q, b.dataset.f ? 'Batalkan' : 'Keluarkan')) act(b, 'group_kick', {memberId: m.id}, b.dataset.f ? 'Dibatalkan' : 'Anggota dikeluarkan');
+  });
+  document.querySelectorAll('[data-ic]').forEach(b => b.onclick = () => act(b, 'group_invite_cancel', {inviteId: b.dataset.ic}, 'Undangan dibatalkan'));
   const rq = $('#rnq');
   if (rq) rq.onclick = () => {
     const o = openModal(`<div class="row between"><h3>Ganti nama grup</h3><button class="x" id="mx">×</button></div>
@@ -1647,6 +1733,7 @@ function renderBadges(list){
 
 
 /* ============================ NOTIFIKASI ============================ */
+function setPartyName(p){ const el = $('#ptn'); if (el) el.innerHTML = p && p.name ? ` • <b class="ptn">🎲 ${esc(p.name)}</b>` : ''; }
 function setBell(n){
   const b = $('#bcnt'); if (!b) return;
   b.textContent = n > 99 ? '99+' : n; b.style.display = n > 0 ? '' : 'none';
