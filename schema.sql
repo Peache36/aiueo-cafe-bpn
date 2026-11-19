@@ -29,6 +29,8 @@ alter table public.aiueo_users add column if not exists "username_changed_at" te
 alter table public.aiueo_users add column if not exists "deleted_at" text not null default '';
 alter table public.aiueo_users add column if not exists "referred_by" text not null default '';
 alter table public.aiueo_users add column if not exists "ref_rewarded" text not null default '';
+alter table public.aiueo_users add column if not exists "leave_key" text not null default '';
+alter table public.aiueo_users add column if not exists "leave_ts" text not null default '';
 create index if not exists ix_aiueo_users_user_id on public.aiueo_users ("user_id");
 create index if not exists ix_aiueo_users_phone on public.aiueo_users ("phone");
 create index if not exists ix_aiueo_users_member_code on public.aiueo_users ("member_code");
@@ -283,6 +285,8 @@ alter table public.aiueo_groups add column if not exists "waiting_since" text no
 alter table public.aiueo_groups add column if not exists "created_at" text not null default '';
 alter table public.aiueo_groups add column if not exists "rename_key" text not null default '';
 alter table public.aiueo_groups add column if not exists "rename_ts" text not null default '';
+alter table public.aiueo_groups add column if not exists "lock_key" text not null default '';
+alter table public.aiueo_groups add column if not exists "lock_ts" text not null default '';
 create index if not exists ix_aiueo_groups_id on public.aiueo_groups ("id");
 create index if not exists ix_aiueo_groups_status on public.aiueo_groups ("status");
 alter table public.aiueo_groups enable row level security;
@@ -297,6 +301,8 @@ alter table public.aiueo_groupmembers add column if not exists "status" text not
 alter table public.aiueo_groupmembers add column if not exists "invited_by" text not null default '';
 alter table public.aiueo_groupmembers add column if not exists "joined_at" text not null default '';
 alter table public.aiueo_groupmembers add column if not exists "left_at" text not null default '';
+alter table public.aiueo_groupmembers add column if not exists "q_prev_key" text not null default '';
+alter table public.aiueo_groupmembers add column if not exists "q_prev_ts" text not null default '';
 create index if not exists ix_aiueo_groupmembers_id on public.aiueo_groupmembers ("id");
 create index if not exists ix_aiueo_groupmembers_group_id on public.aiueo_groupmembers ("group_id");
 create index if not exists ix_aiueo_groupmembers_user_id on public.aiueo_groupmembers ("user_id");

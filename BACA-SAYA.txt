@@ -180,3 +180,21 @@ LAIN-LAIN
 - Bila yang dibatalkan adalah kunjungan pertama teman referral dan tidak ada kunjungan sah lain: hadiah ajak teman ditarik untuk KEDUANYA (VP referral + voucher referral yang belum dipakai). Voucher yang sudah terpakai tidak bisa ditarik dan disebutkan di pesan. Hadiah diberikan lagi saat ada kunjungan pertama yang sah.
 - Kunjungan yang dibatalkan tidak dihitung di Laporan dan progres badge.
 - Kolom baru: Visits.void, UserVouchers.ref → JALANKAN schema.sql terbaru.
+
+=== v7.19 (mengganti aturan v7.5) ===
+- Jatah Party 1 kali per periode (reset tgl 1 WITA, atau N hari bila diatur). Yang MEMAKAI jatah: membuat grup, menerima undangan, ditambahkan lewat nomor baru, keluar grup, dan dikeluarkan.
+- Yang sudah bergabung periode ini tidak bisa keluar sampai reset. Setelah keluar/dikeluarkan, harus menunggu reset untuk membuat grup atau diundang lagi. Sisa hari tampil di halaman Party.
+- Mengeluarkan anggota (lewat 30 menit) memakai jatah ketua, dan yang dikeluarkan ikut masa tunggu.
+- Dibatalkan dalam 30 menit (salah nomor/salah undang) → jatah orang itu dikembalikan. Grup menunggu yang bubar otomatis → jatah anggota dikembalikan.
+- Perbaikan bug: tidak bisa lagi mengundang orang yang masih di Party lain atau masih masa tunggu (pesan jelas ke pengundang). Menerima undangan saat masih di grup lain ditolak (tidak ada lagi pindah otomatis). Begitu bergabung ke satu grup, undangan lain otomatis batal.
+- Admin tetap bisa mereset jatah per orang/semua (Admin > Party).
+- Kolom baru: GroupMembers (q_prev_key, q_prev_ts) → JALANKAN schema.sql terbaru.
+
+=== v7.20 (mengganti aturan v7.19) ===
+- Jatah terpisah per orang per periode: 1× BERGABUNG (buat grup / terima undangan / ditambahkan nomor baru) dan 1× KELUAR. Keluar lalu langsung buat/gabung grup baru di hari yang sama boleh. Yang bergabung di periode ini baru bisa keluar setelah reset.
+- Grup TERBUKA sejak dibuat / sejak reset sampai kunjungan Party pertama periode itu dicatat kasir: ketua bebas bongkar pasang (keluarkan anggota sebanyak apa pun). Setelah kunjungan itu grup TERKUNCI sampai reset: tidak ada yang bisa keluar atau dikeluarkan (termasuk ketua & hapus anak); menambah anggota tetap boleh.
+- Yang dikeluarkan ketua: jatah bergabungnya dikembalikan → bisa langsung gabung grup lain / kembali ke grup lama bila diundang.
+- Tombol "Batalkan" (30 menit) kini HANYA untuk akun nomor baru yang dibuat otomatis (salah ketik). Anggota yang menerima undangan sendiri hanya punya tombol "Keluarkan".
+- Admin > Party > "Kelola grup Party": cari grup, keluarkan anggota, ubah nama, ganti ketua, buka kunci, bubarkan — kapan saja, tanpa memakai jatah siapa pun (jatah anggota yang dikeluarkan/dibubarkan dikembalikan).
+- Reset jatah oleh admin kini mereset jatah bergabung & keluar.
+- Kolom baru: Users (leave_key, leave_ts), Groups (lock_key, lock_ts) → JALANKAN schema.sql terbaru.

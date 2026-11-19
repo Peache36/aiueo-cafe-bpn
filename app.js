@@ -631,6 +631,46 @@ function viewProfile(){
   }
 }
 
+/* ============================ ADMIN: KELOLA GRUP PARTY ============================ */
+async function loadAdminGroups(q){
+  const el = $('#agCard'); if (!el) return;
+  if (q === undefined) q = S.agq || '';
+  try { renderAdminGroups(await call('admin_groups', {q})); } catch(e){ el.innerHTML = ''; handleErr(e); }
+}
+function renderAdminGroups(d){
+  const el = $('#agCard'); if (!el) return; S.agList = d.groups;
+  el.innerHTML = `<h3>Kelola grup Party</h3><p class="hint" style="font-size:12.5px;margin-top:0">Admin bisa mengubah kapan saja tanpa memakai jatah siapa pun.</p>
+    <input id="agq" placeholder="Cari nama grup atau @username" value="${esc(S.agq || '')}">
+    <div>${d.groups.length ? d.groups.map(g => `<div class="agbox"><div class="row between"><b>${esc(g.name)}</b><span class="pill ${g.status === 'active' ? 'ok' : 'off'}">${g.status === 'active' ? 'Aktif' : 'Menunggu'}</span></div>
+      <small class="hint">${g.members.length} anggota • dibuat ${esc(g.created)}${g.locked ? ' • 🔒 terkunci s.d. ' + esc(dmy(g.locked)) : ' • 🔓 terbuka'}</small>
+      <div class="list">${g.members.map(m => `<div><span class="ico">${m.isKid ? '🧒' : m.isLeader ? '👑' : '👤'}</span><div class="t"><b>${esc(m.label)}</b></div><button class="link" data-ak="${esc(g.id)}|${esc(m.id)}|${esc(m.label)}">Keluarkan</button></div>`).join('')}</div>
+      <div class="row" style="gap:8px;margin-top:6px"><button class="btn sm ghost" data-ae="${esc(g.id)}" style="width:auto">Ubah</button><button class="btn sm danger" data-ad="${esc(g.id)}" style="width:auto">Bubarkan</button></div></div>`).join('') : '<div class="empty">Tidak ada grup</div>'}</div>`;
+  let t = 0;
+  el.querySelector('#agq').oninput = ev => { clearTimeout(t); t = setTimeout(() => { S.agq = ev.target.value; loadAdminGroups(S.agq); }, 350); };
+  el.querySelectorAll('[data-ak]').forEach(b => b.onclick = async () => {
+    const [gid, mid, lb] = b.dataset.ak.split('|');
+    if (await askConfirm(`Keluarkan ${lb} dari grup? Jatah Party-nya tidak terpakai.`, 'Keluarkan')) run(b, async () => { renderAdminGroups(await call('admin_group_kick', {groupId: gid, memberId: mid, q: S.agq || ''})); toast('Anggota dikeluarkan', 'ok'); });
+  });
+  el.querySelectorAll('[data-ad]').forEach(b => b.onclick = async () => {
+    const g = S.agList.find(x => x.id === b.dataset.ad);
+    if (await askConfirm(`Bubarkan grup "${g.name}"? Semua anggota keluar dan jatah Party mereka dikembalikan.`, 'Bubarkan')) run(b, async () => { renderAdminGroups(await call('admin_group_dissolve', {groupId: g.id, q: S.agq || ''})); toast('Grup dibubarkan', 'ok'); });
+  });
+  el.querySelectorAll('[data-ae]').forEach(b => b.onclick = () => {
+    const g = S.agList.find(x => x.id === b.dataset.ae), accts = g.members.filter(m => m.userId);
+    const o = openModal(`<div class="row between"><h3>Ubah grup</h3><button class="x" id="mx">×</button></div>
+      <label>Nama grup</label><input id="ag_n" maxlength="40" value="${esc(g.name)}">
+      <label>Ketua</label><select id="ag_l">${accts.map(m => `<option value="${esc(m.userId)}" ${m.isLeader ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}</select>
+      ${g.locked ? '<label class="chk"><input type="checkbox" id="ag_u"> Buka kunci grup (izinkan bongkar pasang lagi periode ini)</label>' : ''}
+      <button class="btn" id="ag_s">Simpan</button>`);
+    o.querySelector('#mx').onclick = closeModal;
+    o.querySelector('#ag_s').onclick = ev => run(ev.currentTarget, async () => {
+      const pl = {groupId: g.id, q: S.agq || ''}, nm = o.querySelector('#ag_n').value.trim(), ld = o.querySelector('#ag_l').value, un = o.querySelector('#ag_u');
+      if (nm !== g.name) pl.name = nm; if (ld && ld !== g.leaderId) pl.leaderId = ld; if (un && un.checked) pl.unlock = true;
+      renderAdminGroups(await call('admin_group_update', pl)); closeModal(); toast('Grup diperbarui', 'ok');
+    });
+  });
+}
+
 /* ============================ ADMIN: VOUCHER ============================ */
 function renderVouchers(d){
   const el = $('#vcCard'); if (!el) return; S.vch = d;
@@ -1131,6 +1171,7 @@ async function viewAdmin(){
       <section class="card" id="bdCard" data-sec="loy"></section>
       <section class="card" id="rnCard" data-sec="party"></section>
       <section class="card" id="qtCard" data-sec="party"></section>
+      <section class="card" id="agCard" data-sec="party"><div class="spin">Memuat grup…</div></section>
       <section class="card" id="nfCard" data-sec="notif"></section>
       <section class="card" id="nrCard" data-sec="notif"></section>
       <section class="card" id="pcCard" data-sec="notif"></section>
@@ -1139,7 +1180,7 @@ async function viewAdmin(){
       <section class="card" data-sec="user"><h3>Pengguna & Peran</h3>
         <div class="row"><input id="uq" placeholder="Cari nama / username / nomor HP (kosong = staff)"><button class="btn sm" id="ugo">Cari</button></div>
         <p class="hint" style="font-size:12px;margin:8px 0 0">Calon kasir harus sudah pernah daftar/login sekali.</p><div class="list" id="ul"></div></section>`;
-    const showAg = k => { S.ag = k; if (k === 'rep') loadReport(); document.querySelectorAll('#agn .chip').forEach(c => c.classList.toggle('on', c.dataset.ag === k)); document.querySelectorAll('#view [data-sec]').forEach(c => c.style.display = c.dataset.sec === k ? '' : 'none'); window.scrollTo(0, 0); };
+    const showAg = k => { S.ag = k; if (k === 'rep') loadReport(); if (k === 'party') loadAdminGroups(); document.querySelectorAll('#agn .chip').forEach(c => c.classList.toggle('on', c.dataset.ag === k)); document.querySelectorAll('#view [data-sec]').forEach(c => c.style.display = c.dataset.sec === k ? '' : 'none'); window.scrollTo(0, 0); };
     $('#agn').onclick = e => { const b = e.target.closest('[data-ag]'); if (b) showAg(b.dataset.ag); };
     showAg((S.ag === 'user' ? 'sum' : S.ag || 'sum'));
     renderCampaigns(cp.campaigns);
@@ -1705,11 +1746,12 @@ function renderParty(d){
   const g = d.group;
   let h = '';
   if (d.invites.length) h += `<section class="card"><h3>Undangan</h3><div class="list">${d.invites.map(i => `<div><div class="t"><b>${esc(i.group)}</b><small>dari @${esc(i.from)}</small></div>
-    <button class="btn sm" data-ia="${esc(i.id)}">Terima</button><button class="link" data-id="${esc(i.id)}">Tolak</button></div>`).join('')}</div>
-    ${g ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Menerima undangan = pindah grup (dihitung 1 perubahan).</p>' : ''}</section>`;
+    ${!g && d.canChange ? `<button class="btn sm" data-ia="${esc(i.id)}">Terima</button>` : ''}<button class="link" data-id="${esc(i.id)}">Tolak</button></div>`).join('')}</div>
+    ${g ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Kamu masih di grup lain. Undangan bisa diterima setelah kamu keluar dari grup itu.</p>' : !d.canChange ? quotaNotice(d.quota) : ''}</section>`;
   if (!g){
     h += `<section class="card"><h3>Party Play</h3><p class="hint" style="margin-top:0">Main bareng ${d.rules.min}–${d.rules.max} orang, dapat potongan harga (diatur kasir). Buat grup atau tunggu undangan dari ketua.</p>
-      <label>Nama grup</label><input id="gn" maxlength="40" placeholder="mis. Elang Board"><button class="btn" id="gc">Buat Grup</button></section>`;
+      ${d.canChange ? '<label>Nama grup</label><input id="gn" maxlength="40" placeholder="mis. Elang Board"><button class="btn" id="gc">Buat Grup</button>' : quotaNotice(d.quota)}
+      ${quotaRule(d.quota)}</section>`;
   } else {
     const st = g.status === 'active' ? '<span class="pill ok">Aktif</span>' : '<span class="pill off">Menunggu anggota</span>';
     h += `<section class="card"><div class="row between"><h3 style="margin:0">${esc(g.name)}</h3>${st}</div>
@@ -1717,14 +1759,15 @@ function renderParty(d){
       <p class="hint" style="font-size:13px;margin:8px 0">${g.status === 'active'
         ? (g.firstVisit ? `Kunjungan pertama: <b>semua ${g.n} anggota</b> harus hadir.` : `Kunjungan berikutnya: minimal <b>${g.required} dari ${g.n}</b> anggota hadir.`) + ' Diskon hanya untuk yang hadir, dikonfirmasi kasir.'
         : `Butuh minimal ${d.rules.min} anggota agar diskon aktif.${g.daysLeft != null ? ` Sisa waktu <b>${g.daysLeft} hari</b> sebelum grup dibubarkan.` : ''}`}</p>
+      ${g.locked ? `<div class="notice">🔒 Grup terkunci karena sudah berkunjung periode ini. Tidak ada yang bisa keluar atau dikeluarkan sampai <b>${dmy(g.locked.until)}</b> (${g.locked.daysLeft} hari). Menambah anggota tetap boleh.</div>` : g.isLeader ? '<p class="hint" style="font-size:12px;margin:0 0 6px">🔓 Grup terbuka: kamu bisa bongkar pasang anggota sampai kunjungan Party pertama periode ini dicatat kasir.</p>' : ''}
       <div class="list">${g.members.map(m => `<div><span class="ico">${m.isKid ? '🧒' : m.isLeader ? '👑' : '👤'}</span><div class="t"><b>${esc(m.label)}${m.isMe ? ' (kamu)' : ''}</b><small>${m.isLeader ? 'Ketua' : m.isKid ? 'Anak' : 'Anggota'}</small></div>
-        ${m.isKid && m.mine ? `<button class="link" data-kr="${esc(m.id)}">Hapus</button>` : m.undo ? `<button class="link" data-kk="${esc(m.id)}" data-f="1">Batalkan <small>(${m.undoLeft} mnt)</small></button>` : m.kick ? `<button class="link" data-kk="${esc(m.id)}">Keluarkan</button>` : ''}</div>`).join('')}</div>
+        ${m.isKid && m.mine && !g.locked ? `<button class="link" data-kr="${esc(m.id)}">Hapus</button>` : m.undo ? `<button class="link" data-kk="${esc(m.id)}" data-f="1">Batalkan <small>(${m.undoLeft} mnt)</small></button>` : m.kick ? `<button class="link" data-kk="${esc(m.id)}">Keluarkan</button>` : ''}</div>`).join('')}</div>
       ${g.pending && g.pending.length ? `<h3 style="margin-top:14px;font-size:15px">Menunggu diterima</h3><div class="list">${g.pending.map(x => `<div><span class="ico">✉️</span><div class="t"><b>${esc(x.label)}</b><small>diundang @${esc(x.by)}</small></div>${x.cancel ? `<button class="link" data-ic="${esc(x.id)}">Batalkan</button>` : ''}</div>`).join('')}</div>` : ''}</section>
       ${true ? `<section class="card"><h3>Undang anggota</h3><div class="row"><input id="iu" placeholder="username atau no. WhatsApp teman" autocapitalize="none"><button class="btn sm" id="ig">Undang</button></div>
         <p class="hint" style="font-size:12px;margin:8px 0 0">Bisa pakai username, atau nomor WhatsApp. Kalau nomornya belum punya akun, akun dibuatkan otomatis dan temanmu langsung jadi anggota tanpa perlu login dulu. Untuk akun yang sudah ada, baru terhitung anggota setelah menerima. Salah nomor? Tekan <b>Batalkan</b> di daftar anggota dalam 30 menit. Nomor baru yang kamu tambahkan dihitung sebagai <b>ajak teman</b>: hadiahnya keluar saat temanmu pertama kali berkunjung.</p></section>` : ''}
       <section class="card"><h3>Anak (tanpa akun)</h3><div class="row"><input id="kn" maxlength="40" placeholder="nama anak"><button class="btn sm" id="kg">Tambah</button></div>
         <p class="hint" style="font-size:12px;margin:8px 0 0">Anak ikut grupmu, dihitung sebagai anggota, dan kehadirannya dikonfirmasi kasir.</p></section>
-      <section class="card">${d.canChange ? '<button class="btn danger" id="gl">Keluar dari grup</button>' + (d.quota && d.quota.mode === 'month' ? '<p class="hint" style="font-size:12px;margin:8px 0 0">Keluar atau pindah grup dibatasi 1 kali per bulan, reset tiap tanggal 1. Menambah anggota bebas kapan saja.</p>' : '') : quotaNotice(d.quota)}</section>`;
+      <section class="card">${leaveBox(d)}${quotaRule(d.quota)}</section>`;
   }
   $('#view').innerHTML = h;
   const act = (btn, name, payload, msg) => run(btn, async () => { renderParty(await call(name, payload)); if (msg) toast(msg, 'ok'); });
@@ -1737,8 +1780,8 @@ function renderParty(d){
   });
   document.querySelectorAll('[data-kk]').forEach(b => b.onclick = async () => {
     const m = S.party.group.members.find(x => x.id === b.dataset.kk);
-    const q = b.dataset.f ? `Batalkan penambahan ${m.label}? Tidak memakai jatah perubahan. Bila akunnya dibuat otomatis dan belum pernah dipakai, akun itu ikut dihapus.`
-      : `Keluarkan ${m.label} dari grup? Ini memakai 1 jatah perubahan Party milikmu.`;
+    const q = b.dataset.f ? `Batalkan penambahan ${m.label} (salah nomor)? Bila akunnya dibuat otomatis dan belum pernah dipakai, akun itu ikut dihapus.`
+      : `Keluarkan ${m.label} dari grup? Jatah bergabungnya dikembalikan sehingga dia bisa langsung bergabung ke Party lain.`;
     if (await askConfirm(q, b.dataset.f ? 'Batalkan' : 'Keluarkan')) act(b, 'group_kick', {memberId: m.id}, b.dataset.f ? 'Dibatalkan' : 'Anggota dikeluarkan');
   });
   document.querySelectorAll('[data-ic]').forEach(b => b.onclick = () => act(b, 'group_invite_cancel', {inviteId: b.dataset.ic}, 'Undangan dibatalkan'));
@@ -1754,12 +1797,28 @@ function renderParty(d){
   on('#gc', b => act(b, 'group_create', {name: $('#gn').value}, 'Grup dibuat'));
   on('#ig', b => run(b, () => inviteStep({username: $('#iu').value.trim()})));
   on('#kg', b => act(b, 'group_kid_add', {name: $('#kn').value}, 'Anak ditambahkan'));
-  on('#gl', async b => { if (await askConfirm('Keluar dari grup? Perubahan anggota berikutnya dibatasi sesuai aturan jeda.', 'Keluar')) act(b, 'group_leave', {}); });
+  on('#gl', async b => { if (await askConfirm('Keluar dari grup? Ini memakai jatah keluar periode ini. Kamu masih bisa langsung membuat atau bergabung ke grup lain (1× per periode).', 'Keluar')) act(b, 'group_leave', {}); });
 }
 
-function quotaNotice(q){
-  if (!q) return '';
-  return `<div class="notice">Perubahan Party sedang dibatasi. Bisa lagi dalam <b>${q.daysLeft} hari</b> (${dmy(q.until)}).</div>`;
+function quotaNotice(q, inGroup){
+  if (!q || q.can) return '';
+  return `<div class="notice">⏳ Jatah Party periode ini sudah terpakai. ${inGroup ? 'Keluar dari grup' : 'Membuat grup atau menerima undangan'} bisa lagi dalam <b>${q.daysLeft} hari</b> (${dmy(q.until)}).</div>`;
+}
+function leaveBox(d){
+  const g = d.group;
+  if (g.locked) return `<div class="notice">🔒 Keluar grup bisa lagi setelah <b>${dmy(g.locked.until)}</b> (grup sudah berkunjung periode ini).</div>`;
+  if (!d.canChange) return `<div class="notice">⏳ Kamu bergabung di periode ini. Keluar grup bisa lagi dalam <b>${d.quota.daysLeft} hari</b> (${dmy(d.quota.until)}).</div>`;
+  if (d.leaveQuota && !d.leaveQuota.can) return `<div class="notice">⏳ Jatah keluar periode ini sudah terpakai. Bisa lagi dalam <b>${d.leaveQuota.daysLeft} hari</b> (${dmy(d.leaveQuota.until)}).</div>`;
+  return '<button class="btn danger" id="gl">Keluar dari grup</button>';
+}
+function quotaRule(q){
+  const per = q && q.mode === 'days' ? 'periode jeda' : 'bulan (reset tiap tanggal 1)';
+  return `<details class="hint" style="font-size:12px;margin:8px 0 0"><summary>Aturan Party</summary><ul style="margin:6px 0 0;padding-left:18px">
+    <li>Tiap orang punya <b>1× bergabung</b> (buat grup / terima undangan) dan <b>1× keluar</b> per ${per}. Keluar lalu langsung buat/gabung grup baru di hari yang sama boleh.</li>
+    <li>Yang bergabung di periode ini baru bisa keluar setelah reset.</li>
+    <li>Ketua bebas bongkar pasang selama grup <b>terbuka</b>. Setelah kunjungan Party pertama periode ini, grup <b>terkunci</b> sampai reset: tidak ada yang keluar/dikeluarkan, tapi menambah anggota tetap boleh.</li>
+    <li>Yang dikeluarkan jatah bergabungnya dikembalikan. Nomor baru yang salah ketik bisa dibatalkan dalam 30 menit.</li>
+    <li>Grup yang bubar otomatis atau dibubarkan admin mengembalikan jatah.</li></ul></details>`;
 }
 /* undang teman: nomor belum terdaftar -> minta nama -> akun dibuat otomatis */
 async function inviteStep(payload){
