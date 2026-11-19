@@ -115,3 +115,68 @@ LAIN-LAIN
 - Undangan yang belum diterima tampil di "Menunggu diterima" dan bisa dibatalkan ketua atau pengundangnya.
 - Lonceng notifikasi kini ikon garis seperti ikon navbar (bukan emoji 3D); angka belum dibaca berupa titik terakota.
 - Nama grup tidak bisa dobel: perbedaan huruf besar/kecil, spasi, dan tanda baca diabaikan ("Elang Board" = "elang-board" = "ElangBoard"). Nama yang sedang diajukan grup lain untuk ganti nama juga dianggap terpakai. Minimal 3 huruf/angka.
+
+=== v7.10 ===
+- Profil: username bisa diganti. Dicek langsung saat mengetik (tersedia / sudah dipakai), unik tanpa membedakan huruf besar/kecil, aturan 3–20 karakter (huruf, angka, titik, garis bawah), nama terlarang (admin, kasir, dll) ditolak.
+- Jeda ganti username: bawaan 30 hari (Admin > Sistem > Aturan & Tampilan > "Jeda ganti username", 0 = bebas). Mengubah huruf besar/kecil saja tidak terkena jeda.
+- Hall of Fame & daftar Party otomatis menampilkan username terbaru.
+- Kolom baru: Users.username_changed_at → JALANKAN schema.sql terbaru.
+
+=== v7.11 ===
+- Perbaikan: Badge & Koleksi di Profil tidak lagi muncul dobel saat filter badge ditekan.
+- Staf/admin: ketuk nama di bilah atas ("Edit profil ›") untuk membuka Profil sendiri (nama, email, username).
+- Event/Turnamen (Admin > Event > Ubah): opsi "Pemberian skor" (Tanpa skor / Skor per peserta), nama satuan skor, dan "Tampilkan hasil di Hall of Fame".
+- Admin > Event > "Peserta & skor": tambah peserta, hapus peserta (VP dari event itu ditarik kembali), isi/ubah skor, ubah juara 1–3 (VP juara dikoreksi otomatis), juara otomatis dari skor tertinggi, Simpan & tutup, "Hapus semua hasil & skor" (VP juara ditarik, hilang dari HoF, event dibuka lagi). Admin tetap bisa mengubah event yang sudah selesai.
+- Hapus event: bila sudah ada peserta hadir, admin dikonfirmasi dan bisa menarik kembali semua VP event itu. Hasilnya hilang dari Hall of Fame.
+- Hall of Fame: event bermode skor tampil sebagai papan sendiri (setelah tab Event).
+- Kolom baru: Activities (score_mode, score_label, hof), ActReg (score) → JALANKAN schema.sql terbaru.
+
+=== v7.12 ===
+- Event/turnamen dengan banyak peserta: semua peserta bisa diberi skor; tabel Peserta & skor kini diurutkan dari skor tertinggi dengan peringkat (#1, #2, … #10). Juara 1–3 tetap yang mendapat VP & medali.
+- Hall of Fame: papan menampilkan 10 besar + tombol "Lihat semua (N)" sampai 100 orang (game & event bermode skor).
+- Opsi per game HoF (Katalog Game > ubah): "Tampilkan jumlah pertandingan" (mis. "5 tanding" di bawah nama) dan "Semua orang bisa lihat rincian skor tiap tanding" (bila mati: hanya pemiliknya & staf).
+- Ketuk nama pemain di papan game → rincian: jumlah tanding, total, rata-rata, terbaik, dan daftar tiap tanding (tanggal, skor, posisi di meja, skor pemain lain).
+- Kolom baru: Games (hof_plays, hof_detail) → JALANKAN schema.sql terbaru.
+
+=== v7.13 ===
+- Menu baru admin "Pengguna" (menu atas, menggantikan tab Profil; profil sendiri dibuka lewat "Edit profil ›" di bawah nama):
+  cari (nama/@username/nomor/kode member), filter peran (Semua/Member/Kasir/GM/Admin dengan jumlah), filter status, urutkan (Terbaru/Nama/VP), halaman 20 per halaman.
+  + Tambah akun (nama, username unik, gender, nomor WA unik, email, peran) — pemilik nomor tinggal login dengan OTP.
+  Ubah akun (nama, username, gender, nomor WA, email, peran, aktif/nonaktif), Atur VP, Hapus akun.
+  Hapus akun = dianonimkan, keluar dari Party, sesi dihapus, tidak bisa login, hilang dari Hall of Fame; riwayat stamp/VP tetap untuk laporan; nomor & username bisa dipakai lagi. Admin terakhir & akun sendiri tidak bisa dihapus.
+- Profil: tombol "Ganti" nomor WhatsApp → kode OTP dikirim ke nomor BARU → setelah benar, nomor diganti dan nomor lama diberi tahu lewat WA. Nomor yang sudah dipakai akun lain ditolak.
+- Kolom baru: Users.deleted_at → JALANKAN schema.sql terbaru.
+
+=== v7.14 ===
+- Edit skor Hall of Fame (admin): Admin > Sistem > Catatan skor > "Ubah", atau ketuk nama pemain di papan > "Ubah" per tanding. Wajib alasan; papan dihitung ulang; pemain semeja dapat notifikasi; tercatat di log admin.
+- Badge baru otomatis saat "Akhiri Musim": Juara Musim 👑 (juara 1), Raja Musim 🏰 (juara 1 di 3 musim), Podium Musim 🎖️ (Top 3). Papan musiman punya tombol "Juara musim sebelumnya".
+- Angka Party kini di Admin > Sistem > Aturan & Tampilan: minimal & maksimal anggota, hari menunggu sebelum bubar, persen kuorum (50 = setengah + 1), dan apakah kunjungan pertama wajib semua hadir.
+- Ajak teman (referral): kode = kode member. Teman isi "Kode ajak teman" saat daftar (atau buka link ?ref=KODE, otomatis terisi). Setelah teman berkunjung pertama kali: teman +10 VP, pengajak +20 VP (maks 10 teman/bulan) — semua angka bisa diatur di Aturan & Tampilan. Profil pelanggan punya kartu "Ajak teman" dengan tombol Bagikan & daftar teman.
+- Rating & ulasan: di detail game (1–5 bintang + teks singkat), hanya untuk yang pernah memainkan game itu di kafe. Staf bisa menyembunyikan ulasan. Rating tampil di Discover (urutkan "Rating tertinggi").
+- Wishlist: tombol ♡ di detail game, filter "♥ Wishlist" di Discover, dan bagian Wishlist di Profil.
+- Dashboard laporan: Admin > Laporan (7/30/90/365 hari): kunjungan & member (dibanding periode sebelumnya), per hari, jam & hari ramai, jenis kunjungan, kondisi member (aktif/mulai jarang/lama tidak datang), game populer, member paling sering datang, reward, rating, wishlist.
+- Tabel baru: SeasonWins, GameReviews, Wishlist; kolom baru Users (referred_by, ref_rewarded) → JALANKAN schema.sql terbaru.
+
+=== v7.15 ===
+- Hall of Fame dimuat per papan: saat dibuka hanya papan pertama (10 besar) yang diambil; papan lain diambil saat tab-nya dipilih; tombol "Muat lebih banyak" menambah 20 per klik. Skor diambil per game langsung dari database (lebih ringan saat data besar).
+- Profil: Koleksi game tampil 6 dulu + "Muat lebih banyak" (12 per klik); Badge tampil 8 + "Lihat semua badge"; Wishlist 6 + "Lihat semua".
+- Koleksi & badge membaca riwayat game yang disaring di database, tidak lagi seluruh tabel.
+- Tidak ada perubahan database.
+
+=== v7.16 ===
+- Sistem voucher (Admin > Loyalty > kartu "Voucher"): buat voucher (nama, syarat, masa berlaku sejak diberikan, aktif), tandai sebagai hadiah referral untuk TEMAN BARU dan/atau PENGAJAK (satu voucher per peran). Tombol "Beri" untuk mengirim voucher manual ke username tertentu (mis. ulang tahun). Statistik dibagikan/dipakai/aktif, daftar voucher terbaru + Batalkan.
+- Referral: saat teman berkunjung pertama kali, VP referral + voucher referral otomatis diberikan (pakai batas per bulan yang sama). Isi VP referral 0 bila hanya ingin voucher.
+- Pelanggan: kartu "Voucher kamu" di Beranda (nama, syarat, kode V-XXXXXX, masa berlaku) + riwayat di Profil. Notifikasi saat dapat & saat dipakai.
+- Cara pakai: pelanggan menunjukkan QR member atau kode voucher. Kasir di tab Kasir mencari pelanggan (scan QR / ketik kode V-XXXXXX / nomor / username) → bagian "Voucher pelanggan" → "Pakai". Sekali pakai, voucher kedaluwarsa ditolak otomatis.
+- Laporan: jumlah voucher dibagikan & dipakai.
+- Tabel baru: Vouchers, UserVouchers → JALANKAN schema.sql terbaru.
+
+=== v7.17 ===
+- Undang lewat Party dengan NOMOR BARU kini dihitung sebagai ajak teman (sama persis dengan referral biasa): yang menambahkan (ketua/anggota) jadi pengajak; hadiah VP + voucher keluar saat teman pertama kali berkunjung; batas per bulan sama. Mengundang akun yang sudah ada tidak dihitung. Dibatalkan dalam 30 menit (salah nomor) = referral ikut batal.
+- Tidak ada perubahan database.
+
+=== v7.18 ===
+- Admin bisa membatalkan KUNJUNGAN langsung dari daftar aktivitas (Kasir/Aktivitas → Aktivitas terbaru → 🎲 Kunjungan → Batalkan + alasan). VP kunjungan itu ditarik otomatis. Stamp tidak ikut — batalkan terpisah bila perlu. (Membatalkan VP kunjungan juga dianggap membatalkan kunjungannya.)
+- Bila yang dibatalkan adalah kunjungan pertama teman referral dan tidak ada kunjungan sah lain: hadiah ajak teman ditarik untuk KEDUANYA (VP referral + voucher referral yang belum dipakai). Voucher yang sudah terpakai tidak bisa ditarik dan disebutkan di pesan. Hadiah diberikan lagi saat ada kunjungan pertama yang sah.
+- Kunjungan yang dibatalkan tidak dihitung di Laporan dan progres badge.
+- Kolom baru: Visits.void, UserVouchers.ref → JALANKAN schema.sql terbaru.

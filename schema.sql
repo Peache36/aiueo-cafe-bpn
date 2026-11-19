@@ -25,6 +25,10 @@ alter table public.aiueo_users add column if not exists "vp_month_key" text not 
 alter table public.aiueo_users add column if not exists "grp_change_key" text not null default '';
 alter table public.aiueo_users add column if not exists "grp_change_ts" text not null default '';
 alter table public.aiueo_users add column if not exists "auto_created" text not null default '';
+alter table public.aiueo_users add column if not exists "username_changed_at" text not null default '';
+alter table public.aiueo_users add column if not exists "deleted_at" text not null default '';
+alter table public.aiueo_users add column if not exists "referred_by" text not null default '';
+alter table public.aiueo_users add column if not exists "ref_rewarded" text not null default '';
 create index if not exists ix_aiueo_users_user_id on public.aiueo_users ("user_id");
 create index if not exists ix_aiueo_users_phone on public.aiueo_users ("phone");
 create index if not exists ix_aiueo_users_member_code on public.aiueo_users ("member_code");
@@ -196,6 +200,8 @@ alter table public.aiueo_games add column if not exists "season_no" text not nul
 alter table public.aiueo_games add column if not exists "hof_approve" text not null default '';
 alter table public.aiueo_games add column if not exists "hof_flag" text not null default '';
 alter table public.aiueo_games add column if not exists "hof_checkin" text not null default '';
+alter table public.aiueo_games add column if not exists "hof_plays" text not null default '';
+alter table public.aiueo_games add column if not exists "hof_detail" text not null default '';
 create index if not exists ix_aiueo_games_id on public.aiueo_games ("id");
 alter table public.aiueo_games enable row level security;
 revoke all on public.aiueo_games from anon, authenticated;
@@ -321,6 +327,7 @@ alter table public.aiueo_visits add column if not exists "by_user" text not null
 alter table public.aiueo_visits add column if not exists "by_name" text not null default '';
 alter table public.aiueo_visits add column if not exists "stamp" text not null default '';
 alter table public.aiueo_visits add column if not exists "vp" text not null default '';
+alter table public.aiueo_visits add column if not exists "void" text not null default '';
 create index if not exists ix_aiueo_visits_id on public.aiueo_visits ("id");
 create index if not exists ix_aiueo_visits_ts on public.aiueo_visits ("ts");
 create index if not exists ix_aiueo_visits_user_id on public.aiueo_visits ("user_id");
@@ -354,6 +361,9 @@ alter table public.aiueo_activities add column if not exists "gm_id" text not nu
 alter table public.aiueo_activities add column if not exists "status" text not null default '';
 alter table public.aiueo_activities add column if not exists "active" text not null default '';
 alter table public.aiueo_activities add column if not exists "created_at" text not null default '';
+alter table public.aiueo_activities add column if not exists "score_mode" text not null default '';
+alter table public.aiueo_activities add column if not exists "score_label" text not null default '';
+alter table public.aiueo_activities add column if not exists "hof" text not null default '';
 create index if not exists ix_aiueo_activities_id on public.aiueo_activities ("id");
 create index if not exists ix_aiueo_activities_status on public.aiueo_activities ("status");
 alter table public.aiueo_activities enable row level security;
@@ -366,6 +376,7 @@ alter table public.aiueo_actreg add column if not exists "user_id" text not null
 alter table public.aiueo_actreg add column if not exists "status" text not null default '';
 alter table public.aiueo_actreg add column if not exists "placement" text not null default '';
 alter table public.aiueo_actreg add column if not exists "ts" text not null default '';
+alter table public.aiueo_actreg add column if not exists "score" text not null default '';
 create index if not exists ix_aiueo_actreg_id on public.aiueo_actreg ("id");
 create index if not exists ix_aiueo_actreg_activity_id on public.aiueo_actreg ("activity_id");
 create index if not exists ix_aiueo_actreg_user_id on public.aiueo_actreg ("user_id");
@@ -398,6 +409,81 @@ create index if not exists ix_aiueo_userbadges_user_id on public.aiueo_userbadge
 create index if not exists ix_aiueo_userbadges_ts on public.aiueo_userbadges ("ts");
 alter table public.aiueo_userbadges enable row level security;
 revoke all on public.aiueo_userbadges from anon, authenticated;
+
+create table if not exists public.aiueo_seasonwins (rn bigint generated always as identity primary key);
+alter table public.aiueo_seasonwins add column if not exists "id" text not null default '';
+alter table public.aiueo_seasonwins add column if not exists "game_id" text not null default '';
+alter table public.aiueo_seasonwins add column if not exists "game_name" text not null default '';
+alter table public.aiueo_seasonwins add column if not exists "season_no" text not null default '';
+alter table public.aiueo_seasonwins add column if not exists "user_id" text not null default '';
+alter table public.aiueo_seasonwins add column if not exists "rank" text not null default '';
+alter table public.aiueo_seasonwins add column if not exists "score" text not null default '';
+alter table public.aiueo_seasonwins add column if not exists "ts" text not null default '';
+create index if not exists ix_aiueo_seasonwins_id on public.aiueo_seasonwins ("id");
+create index if not exists ix_aiueo_seasonwins_user_id on public.aiueo_seasonwins ("user_id");
+create index if not exists ix_aiueo_seasonwins_ts on public.aiueo_seasonwins ("ts");
+alter table public.aiueo_seasonwins enable row level security;
+revoke all on public.aiueo_seasonwins from anon, authenticated;
+
+create table if not exists public.aiueo_gamereviews (rn bigint generated always as identity primary key);
+alter table public.aiueo_gamereviews add column if not exists "id" text not null default '';
+alter table public.aiueo_gamereviews add column if not exists "game_id" text not null default '';
+alter table public.aiueo_gamereviews add column if not exists "user_id" text not null default '';
+alter table public.aiueo_gamereviews add column if not exists "rating" text not null default '';
+alter table public.aiueo_gamereviews add column if not exists "text" text not null default '';
+alter table public.aiueo_gamereviews add column if not exists "ts" text not null default '';
+alter table public.aiueo_gamereviews add column if not exists "status" text not null default '';
+create index if not exists ix_aiueo_gamereviews_id on public.aiueo_gamereviews ("id");
+create index if not exists ix_aiueo_gamereviews_user_id on public.aiueo_gamereviews ("user_id");
+create index if not exists ix_aiueo_gamereviews_ts on public.aiueo_gamereviews ("ts");
+create index if not exists ix_aiueo_gamereviews_status on public.aiueo_gamereviews ("status");
+alter table public.aiueo_gamereviews enable row level security;
+revoke all on public.aiueo_gamereviews from anon, authenticated;
+
+create table if not exists public.aiueo_wishlist (rn bigint generated always as identity primary key);
+alter table public.aiueo_wishlist add column if not exists "id" text not null default '';
+alter table public.aiueo_wishlist add column if not exists "user_id" text not null default '';
+alter table public.aiueo_wishlist add column if not exists "game_id" text not null default '';
+alter table public.aiueo_wishlist add column if not exists "ts" text not null default '';
+create index if not exists ix_aiueo_wishlist_id on public.aiueo_wishlist ("id");
+create index if not exists ix_aiueo_wishlist_user_id on public.aiueo_wishlist ("user_id");
+create index if not exists ix_aiueo_wishlist_ts on public.aiueo_wishlist ("ts");
+alter table public.aiueo_wishlist enable row level security;
+revoke all on public.aiueo_wishlist from anon, authenticated;
+
+create table if not exists public.aiueo_vouchers (rn bigint generated always as identity primary key);
+alter table public.aiueo_vouchers add column if not exists "id" text not null default '';
+alter table public.aiueo_vouchers add column if not exists "name" text not null default '';
+alter table public.aiueo_vouchers add column if not exists "description" text not null default '';
+alter table public.aiueo_vouchers add column if not exists "valid_days" text not null default '';
+alter table public.aiueo_vouchers add column if not exists "active" text not null default '';
+alter table public.aiueo_vouchers add column if not exists "ref_new" text not null default '';
+alter table public.aiueo_vouchers add column if not exists "ref_referrer" text not null default '';
+alter table public.aiueo_vouchers add column if not exists "created_at" text not null default '';
+create index if not exists ix_aiueo_vouchers_id on public.aiueo_vouchers ("id");
+alter table public.aiueo_vouchers enable row level security;
+revoke all on public.aiueo_vouchers from anon, authenticated;
+
+create table if not exists public.aiueo_uservouchers (rn bigint generated always as identity primary key);
+alter table public.aiueo_uservouchers add column if not exists "id" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "voucher_id" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "user_id" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "code" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "name" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "description" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "source" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "status" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "issued_at" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "expires_at" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "used_at" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "used_by" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "note" text not null default '';
+alter table public.aiueo_uservouchers add column if not exists "ref" text not null default '';
+create index if not exists ix_aiueo_uservouchers_id on public.aiueo_uservouchers ("id");
+create index if not exists ix_aiueo_uservouchers_user_id on public.aiueo_uservouchers ("user_id");
+create index if not exists ix_aiueo_uservouchers_status on public.aiueo_uservouchers ("status");
+alter table public.aiueo_uservouchers enable row level security;
+revoke all on public.aiueo_uservouchers from anon, authenticated;
 
 create table if not exists public.aiueo_feed (rn bigint generated always as identity primary key);
 alter table public.aiueo_feed add column if not exists "id" text not null default '';
