@@ -210,3 +210,17 @@ LAIN-LAIN
 - Opsi di Profil: "Tampilkan profilku ke pemain lain" (bawaan: aktif). Bila dimatikan, orang lain hanya melihat username & tier.
 - Koleksi di profil kini menampilkan ringkasan: "N× main • N game berbeda • paling sering …".
 - Tabel baru PlayLogs + kolom Users.public_profile → JALANKAN schema.sql terbaru.
+
+=== v7.22 — Daftar catatan main untuk staf + Setujui tanpa kunjungan ===
+- Aktivitas > tab "Catatan" (kasir, GM, admin): semua catatan "🎲 Saya main ini" dari semua pemain. Filter status (⏳ Menunggu / ✓ Sah / Ditolak / Kedaluwarsa / Bukan saya / Semua, lengkap dengan jumlahnya), rentang (Hari ini / 7 hari / 30 hari), cari game atau @username, "Muat lebih banyak".
+- Tombol "Setujui": langsung sah & masuk koleksi tanpa menunggu kunjungan dicatat. Untuk catatan yang menandai teman, pilih "Setujui + N teman" atau "Hanya @pemain". Catatan Kedaluwarsa (≤7 hari) juga bisa disetujui. Pemain mendapat notifikasi; catatan diberi keterangan "Disetujui @staf" dan masuk log admin.
+- Tombol "Tolak" (+ alasan) juga ada di daftar ini.
+- Tanda ⚠ untuk pola janggal: ≥8 catatan sendiri dalam sehari, atau pemain yang ≥2× ditolak / dibantah "Bukan saya" (30 hari terakhir).
+- Panel "Catatan game hari ini" di Kasir kini juga punya tombol Setujui.
+- Tidak ada kolom baru → schema.sql TIDAK perlu dijalankan ulang (cukup bila v7.21 belum dijalankan).
+
+=== v7.23 — Bantuan pilih pemain di form skor HoF + pembersihan data lama ===
+- Form "Catat skor Hall of Fame" (staf di Aktivitas > Game, dan pelanggan di Hall of Fame): kolom @username kini memunculkan saran saat diketik (staf: nama / @username / 4 digit HP; pelanggan: username saja), chip cepat (staf: "Hadir hari ini" + "+ Semua" anggota Party; pelanggan: Anggota Party + Sering main bareng), dan tombol ⌗ QR. Mengetuk chip mengisi baris kosong berikutnya (baris baru ditambah otomatis) lalu kursor pindah ke kolom skor.
+- Pembersihan otomatis tiap hari (09:00 WITA): catatan main yang kedaluwarsa/ditolak/"bukan saya"/dibatalkan, catatan skor HoF yang kedaluwarsa/ditolak/tidak pernah dikonfirmasi, dan notifikasi yang sudah dibaca — yang lebih lama dari 90 hari — dihapus permanen. Catatan sah dan skor yang dibatalkan admin (void) TETAP disimpan.
+- Batas hari bisa diubah di Admin > Sistem > Aturan: "cleanup_days" (30–730, bawaan 90). Tombol "🧹 Bersihkan data lama sekarang" di Admin > Sistem untuk menjalankan manual (tercatat di log admin).
+- Tidak ada kolom baru → schema.sql tidak perlu dijalankan ulang.

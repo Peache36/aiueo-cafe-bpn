@@ -444,9 +444,11 @@ async function loadKasirPlays(c){
   try {
     const d = await call('plays_staff', {userId: c.id}); if (!d.items.length){ el.style.display = 'none'; return; }
     el.style.display = '';
-    el.innerHTML = `<h3>Catatan game hari ini <small>(${d.items.length})</small></h3><p class="hint" style="font-size:12px;margin-top:0">⏳ otomatis sah saat kunjungan dicatat. Tolak bila tidak sesuai.</p>
-      <div class="list">${d.items.map(x => `<div><span class="ico">${x.status === 'ok' ? '✓' : '⏳'}</span><div class="t"><b>${esc(x.game)}</b><small>${x.source === 'tag' ? 'ditandai @' + esc(x.by) : 'dicatat sendiri'}${x.tags.length ? ' • bersama ' + x.tags.map(t => '@' + esc(t.username)).join(', ') : ''} • ${esc(x.ts.slice(11))}</small></div><button class="link" data-pr="${esc(x.id)}">Tolak</button></div>`).join('')}</div>`;
-    el.onclick = e => { const b = e.target.closest('[data-pr]'); if (!b) return;
+    el.innerHTML = `<h3>Catatan game hari ini <small>(${d.items.length})</small></h3><p class="hint" style="font-size:12px;margin-top:0">⏳ otomatis sah saat kunjungan dicatat, atau tekan Setujui. Tolak bila tidak sesuai.</p>
+      <div class="list">${d.items.map(x => `<div><span class="ico">${x.status === 'ok' ? '✓' : '⏳'}</span><div class="t"><b>${esc(x.game)}</b><small>${x.source === 'tag' ? 'ditandai @' + esc(x.by) : 'dicatat sendiri'}${x.tags.length ? ' • bersama ' + x.tags.map(t => '@' + esc(t.username)).join(', ') : ''} • ${esc(x.ts.slice(11))}</small></div><div class="row" style="gap:12px">${x.status === 'pending' ? `<button class="link" data-pa="${esc(x.id)}">Setujui</button>` : ''}<button class="link" data-pr="${esc(x.id)}">Tolak</button></div></div>`).join('')}</div>`;
+    el.onclick = async e => { const pa = e.target.closest('[data-pa]');
+      if (pa){ if (!await askConfirm('Setujui catatan ini (beserta teman yang ditandai) tanpa menunggu kunjungan dicatat?', 'Setujui')) return; return run(pa, async () => { const d = await call('play_approve', {id: pa.dataset.pa, withTags: true}); toast(d.approved + ' catatan disetujui', 'ok'); loadKasirPlays(c); }); }
+      const b = e.target.closest('[data-pr]'); if (!b) return;
       const o = openModal(`<div class="row between"><h3>Tolak catatan game</h3><button class="x" id="mx">×</button></div><label>Alasan <small>(opsional)</small></label><input id="prr" maxlength="100" placeholder="mis. tidak memainkan game ini"><button class="btn danger" id="prs">Tolak</button>`);
       o.querySelector('#mx').onclick = closeModal;
       o.querySelector('#prs').onclick = ev => run(ev.currentTarget, async () => { await call('play_reject', {id: b.dataset.pr, userId: c.id, reason: o.querySelector('#prr').value}); closeModal(); toast('Catatan ditolak', 'ok'); loadKasirPlays(c); });
@@ -1176,7 +1178,7 @@ function attachPicker(input, opt){
   ti.onkeydown = e => { if (e.key === 'Enter' || e.key === ','){ e.preventDefault(); const b = sug.querySelector('[data-ad]'); add(b ? b.dataset.ad : ti.value); ti.value = ''; sug.innerHTML = ''; } };
   sug.onclick = e => { const b = e.target.closest('[data-ad]'); if (b){ add(b.dataset.ad); ti.value = ''; sug.innerHTML = ''; ti.focus(); } };
   w.querySelector('.pkq').onclick = () => scanQrModal('Scan QR member', async data => { try { const d = await call('qr_username', {q: data}); if (d.username){ add(d.username); toast('@' + d.username + ' ditambahkan', 'ok'); } } catch(e){ handleErr(e); } });
-  const drawQuick = () => { quick.innerHTML = groups.map(g => { const left = g.names.filter(n => !chips.some(c => c.toLowerCase() === n.toLowerCase())); return left.length ? `<div class="pkg"><small>${esc(g.label)}</small>${g.all && left.length > 1 ? `<button type="button" class="chip" data-all="${esc(g.label)}">+ Semua (${left.length})</button>` : ''}${left.slice(0, 12).map(n => `<button type="button" class="chip" data-ad="${esc(n)}">@${esc(n)}</button>`).join('')}</div>` : ''; }).join(''); };
+  const drawQuick = () => { const seen = []; quick.innerHTML = groups.map(g => { const left = g.names.filter(n => !chips.some(c => c.toLowerCase() === n.toLowerCase()) && seen.indexOf(n.toLowerCase()) < 0); left.forEach(n => seen.push(n.toLowerCase())); return left.length ? `<div class="pkg"><small>${esc(g.label)}</small>${g.all && left.length > 1 ? `<button type="button" class="chip" data-all="${esc(g.label)}">+ Semua (${left.length})</button>` : ''}${left.slice(0, 12).map(n => `<button type="button" class="chip" data-ad="${esc(n)}">@${esc(n)}</button>`).join('')}</div>` : ''; }).join(''); };
   quick.onclick = e => { const a = e.target.closest('[data-all]'); if (a){ groups.find(g => g.label === a.dataset.all).names.forEach(add); return; } const b = e.target.closest('[data-ad]'); if (b) add(b.dataset.ad); };
   const setGroup = (label, names, all) => { groups = groups.filter(g => g.label !== label); if (names && names.length) groups.push({label, names, all}); drawQuick(); };
   const partyHint = async n => { if (!staff) return; try { const d = await call('party_of', {username: n}); if (d.users && d.users.length > 1) setGroup('Party ' + d.group, d.users.map(x => x.username), true); } catch(e){} };
@@ -1722,10 +1724,47 @@ function scoreRows(max, selfName){
   return `<div id="sr">${Array.from({length: 2}, (_, i) => scoreRow(i === 0 ? selfName : '', i === 0 && !!selfName)).join('')}</div>${max > 2 ? '<button class="link" id="sadd">+ Tambah pemain</button>' : ''}`;
 }
 function scoreRow(name, locked){
-  return `<div class="row srw" style="margin-bottom:6px"><input class="su" placeholder="username" autocapitalize="none" value="${esc(name || '')}" ${locked ? 'readonly' : ''} style="flex:1.4"><input class="ss" type="number" inputmode="decimal" placeholder="skor" style="flex:1"></div>`;
+  return `<div class="row srw" style="margin-bottom:6px"><input class="su" placeholder="@username" autocapitalize="none" autocomplete="off" spellcheck="false" value="${esc(name || '')}" ${locked ? 'readonly' : ''} style="flex:1.4"><input class="ss" type="number" inputmode="decimal" placeholder="skor" style="flex:1"></div>`;
 }
 function readScoreRows(root){ return [...root.querySelectorAll('.srw')].map(r => ({username: r.querySelector('.su').value.trim(), score: r.querySelector('.ss').value})).filter(x => x.username || x.score !== ''); }
+/* v7.23 bantuan pilih pemain di form skor HoF: saran saat mengetik + chip cepat + scan QR */
+function scoreAssist(root, max){
+  const sr = root.querySelector('#sr'); if (!sr || sr._as) return; sr._as = 1;
+  const staff = S.user.role !== 'customer';
+  sr.insertAdjacentHTML('beforebegin', `<div class="pk sca"><div class="row" style="gap:8px;align-items:center"><small class="hint" style="flex:1;margin:0">${staff ? 'Ketik nama / @username / 4 digit HP, atau ketuk chip:' : 'Ketik @username, atau ketuk chip teman:'}</small><button type="button" class="btn sm ghost pkq" style="width:auto">⌗ QR</button></div><div class="pkx"></div></div>`);
+  const box = root.querySelector('.sca'), quick = box.querySelector('.pkx');
+  let groups = [];
+  const used = () => [...sr.querySelectorAll('.su')].map(i => i.value.trim().replace(/^@/, '').toLowerCase()).filter(Boolean);
+  const draw = () => { const u = used(), seen = []; quick.innerHTML = groups.slice().sort((a, b) => (b.all ? 1 : 0) - (a.all ? 1 : 0)).map(g => { const left = g.names.filter(n => u.indexOf(n.toLowerCase()) < 0 && seen.indexOf(n.toLowerCase()) < 0); left.forEach(n => seen.push(n.toLowerCase())); return left.length ? `<div class="pkg"><small>${esc(g.label)}</small>${g.all && left.length > 1 ? `<button type="button" class="chip" data-all="${esc(g.label)}">+ Semua (${left.length})</button>` : ''}${left.slice(0, 12).map(n => `<button type="button" class="chip" data-ad="${esc(n)}">@${esc(n)}</button>`).join('')}</div>` : ''; }).join(''); };
+  const setGroup = (label, names, all) => { groups = groups.filter(g => g.label !== label); if (names && names.length) groups.push({label, names, all}); draw(); };
+  const partyHint = async n => { if (!staff || !n) return; try { const d = await call('party_of', {username: n}); if (d.users && d.users.length > 1) setGroup('Party ' + d.group, d.users.map(x => x.username), true); } catch(e){} };
+  const fill = (n, inp) => {
+    n = String(n || '').trim().replace(/^@/, ''); if (!n) return;
+    if (used().indexOf(n.toLowerCase()) >= 0 && !(inp && inp.value.trim().replace(/^@/, '').toLowerCase() === n.toLowerCase())) return toast('@' + n + ' sudah ada', 'err');
+    let t = inp || [...sr.querySelectorAll('.su')].find(i => !i.readOnly && !i.value.trim());
+    if (!t){ if (sr.querySelectorAll('.srw').length >= max) return toast('Maksimal ' + max + ' pemain', 'err'); sr.insertAdjacentHTML('beforeend', scoreRow('', false)); t = [...sr.querySelectorAll('.su')].pop(); }
+    t.value = n; closeSug(); draw(); partyHint(n);
+    const sc = t.closest('.srw').querySelector('.ss'); if (sc && !sc.value) sc.focus();
+  };
+  let sug = null, tm = 0;
+  const closeSug = () => { if (sug){ sug.remove(); sug = null; } };
+  sr.addEventListener('input', e => { const i = e.target.closest('.su'); if (!i || i.readOnly) return; draw(); clearTimeout(tm); const q = i.value.trim(); if (q.length < 2) return closeSug();
+    tm = setTimeout(async () => { try { const d = await call('username_suggest', {q}); closeSug(); const list = d.users.filter(u => u.username);
+      sug = document.createElement('div'); sug.className = 'pks'; sug.innerHTML = list.length ? list.map(u => `<button type="button" data-ad="${esc(u.username)}">@${esc(u.username)}${staff && u.name ? ` <small>${esc(u.name)}${u.phone4 ? ' • ••' + esc(u.phone4) : ''}</small>` : ''}</button>`).join('') : '<small class="hint" style="padding:6px 2px">Tidak ditemukan</small>';
+      sug.onmousedown = ev => ev.preventDefault();
+      sug.onclick = ev => { const b = ev.target.closest('[data-ad]'); if (b) fill(b.dataset.ad, i); };
+      i.closest('.srw').insertAdjacentElement('afterend', sug); } catch(err){} }, 250); });
+  sr.addEventListener('focusout', e => { if (e.target.closest('.su')) setTimeout(() => { if (sug && !sug.contains(document.activeElement)) closeSug(); }, 150); });
+  quick.onclick = e => { const a = e.target.closest('[data-all]'); if (a){ groups.find(g => g.label === a.dataset.all).names.filter(n => used().indexOf(n.toLowerCase()) < 0).forEach(n => fill(n)); return; } const b = e.target.closest('[data-ad]'); if (b) fill(b.dataset.ad); };
+  box.querySelector('.pkq').onclick = () => scanQrModal('Scan QR member', async data => { try { const d = await call('qr_username', {q: data}); if (d.username){ fill(d.username); toast('@' + d.username + ' ditambahkan', 'ok'); } } catch(e){ handleErr(e); } });
+  root._scoreReset = () => { sr.querySelectorAll('.su:not([readonly]),.ss').forEach(i => i.value = ''); draw(); };
+  (async () => { try {
+    if (staff){ const d = await call('present_today'); setGroup('Hadir hari ini', d.users.map(x => x.username), false); }
+    else { const d = await call('play_friends'); setGroup('Anggota Party', d.party, true); setGroup('Sering main bareng', d.often, false); }
+  } catch(e){} })();
+}
 function bindScoreAdd(root, max){
+  scoreAssist(root, max);
   const add = root.querySelector('#sadd'); if (!add) return;
   add.onclick = () => { const n = root.querySelectorAll('.srw').length; if (n >= max) return toast('Maksimal ' + max + ' pemain', 'err'); root.querySelector('#sr').insertAdjacentHTML('beforeend', scoreRow('', false)); };
 }
@@ -1987,19 +2026,70 @@ function inviteRetryModal(payload, e){
 const V = {mode: 'party', meta: null, games: null, group: null};
 async function viewVisit(){
   const role = S.user.role;
-  if (V.mode !== 'game') V.mode = 'event';
+  if (V.mode !== 'game' && V.mode !== 'plays') V.mode = 'event';
   $('#view').innerHTML = '<div class="spin">Memuat…</div>';
   try {
     V.meta = await call('visit_meta');
-    $('#view').innerHTML = `<div class="seg"><button data-m="event">Event</button><button data-m="game">Game</button></div><div id="vb"></div>`;
+    $('#view').innerHTML = `<div class="seg"><button data-m="event">Event</button><button data-m="game">Game</button><button data-m="plays">Catatan</button></div><div id="vb"></div>`;
     const sg = document.querySelector('.seg');
     if (sg) sg.onclick = e => { const b = e.target.closest('[data-m]'); if (b){ V.mode = b.dataset.m; drawVisit(); } };
     drawVisit();
   } catch(e){ handleErr(e); }
 }
+/* ---- Aktivitas > Catatan main (semua pemain) ---- */
+const PV = {status: 'pending', days: 1, q: '', items: [], off: 0};
+async function visitPlays(){
+  const vb = $('#vb');
+  vb.innerHTML = `<section class="card"><h3>Catatan main pemain</h3>
+    <p class="hint" style="font-size:12.5px;margin-top:0">Catatan "🎲 Saya main ini" dari pelanggan. ⏳ otomatis sah saat kunjungan dicatat; bisa juga <b>Setujui</b> langsung tanpa menunggu kunjungan.</p>
+    <div class="chips" id="pv_s">${[['pending','⏳ Menunggu'],['ok','✓ Sah'],['rejected','Ditolak'],['expired','Kedaluwarsa'],['denied','Bukan saya'],['all','Semua']].map(([k, l]) => `<button class="chip ${PV.status === k ? 'on' : ''}" data-st="${k}">${l}<span class="pvn" data-cn="${k}"></span></button>`).join('')}</div>
+    <div class="row" style="gap:8px;margin-top:8px"><select id="pv_d" style="width:auto;margin:0">${[[1,'Hari ini'],[7,'7 hari'],[30,'30 hari']].map(([d, l]) => `<option value="${d}" ${PV.days === d ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <input id="pv_q" placeholder="Cari game / @username" value="${esc(PV.q)}" style="flex:1;margin:0" autocapitalize="none"></div>
+    <div id="pv_l" style="margin-top:10px"><div class="spin">Memuat…</div></div></section>`;
+  $('#pv_s').onclick = e => { const b = e.target.closest('[data-st]'); if (!b) return; PV.status = b.dataset.st; vb.querySelectorAll('[data-st]').forEach(x => x.classList.toggle('on', x === b)); loadPlays(); };
+  $('#pv_d').onchange = e => { PV.days = +e.target.value; loadPlays(); };
+  let t = 0; $('#pv_q').oninput = e => { clearTimeout(t); t = setTimeout(() => { PV.q = e.target.value.trim(); loadPlays(); }, 300); };
+  $('#pv_l').onclick = playsListClick;
+  loadPlays();
+}
+async function loadPlays(more){
+  const el = $('#pv_l'); if (!el) return;
+  if (!more){ PV.off = 0; PV.items = []; }
+  try {
+    const d = await call('plays_admin', {status: PV.status, days: PV.days, q: PV.q, offset: PV.off, limit: 20});
+    PV.items = PV.items.concat(d.items); PV.off += d.items.length;
+    Object.keys(d.counts).forEach(k => { const c = document.querySelector(`[data-cn="${k}"]`); if (c) c.textContent = d.counts[k] ? ' ' + d.counts[k] : ''; });
+    const all = document.querySelector('[data-cn="all"]'); if (all) all.textContent = '';
+    el.innerHTML = PV.items.length ? `<div class="list">${PV.items.map(x => `<div style="flex-wrap:wrap"><span class="ico">${x.status === 'ok' ? '✓' : x.status === 'pending' ? '⏳' : x.status === 'expired' ? '⌛' : '✕'}</span>
+      <div class="t"><b>${pu(x.username)} • ${gameLink(x.gameId, x.game)}</b>
+      <small>${esc(x.ts.slice(5))} • ${x.source === 'tag' ? 'ditandai ' + pu(x.by) : 'catat sendiri'}${x.tags.length ? ' • bersama ' + x.tags.map(t => pu(t.username) + (t.status === 'ok' ? '✓' : t.status === 'pending' ? '⏳' : '')).join(', ') : ''}</small>
+      ${x.note ? `<small>${esc(x.note)}</small>` : ''}${x.flags.length ? `<small style="color:var(--terra)">⚠ ${x.flags.map(esc).join(' • ')}</small>` : ''}</div>
+      <div class="row" style="gap:12px">${x.canApprove ? `<button class="link" data-pa="${esc(x.id)}">Setujui</button>` : ''}${x.canReject ? `<button class="link" style="color:var(--bad,#b3261e)" data-pr="${esc(x.id)}">Tolak</button>` : ''}</div></div>`).join('')}</div>
+      ${PV.off < d.total ? `<button class="btn ghost sm" id="pv_m" style="display:block;margin:10px auto 0;width:auto">Muat lebih banyak (${d.total - PV.off})</button>` : ''}`
+      : '<div class="empty">Tidak ada catatan.</div>';
+  } catch(e){ el.innerHTML = ''; handleErr(e); }
+}
+async function playsListClick(e){
+  if (e.target.id === 'pv_m') return loadPlays(true);
+  const a = e.target.closest('[data-pa]'), r = e.target.closest('[data-pr]');
+  if (a){ const x = PV.items.find(i => i.id === a.dataset.pa);
+    let withTags = false;
+    if (x.pendingTags){ const o = openModal(`<h3>Setujui catatan</h3><p>${esc('@' + x.username)} main <b>${esc(x.game)}</b> bersama ${x.pendingTags} teman yang belum sah.</p>
+      <button class="btn" id="pa_all">Setujui + ${x.pendingTags} teman</button><button class="btn ghost" id="pa_one">Hanya @${esc(x.username)}</button><button class="btn ghost" id="pa_x">Batal</button>`);
+      const pick = await new Promise(res => { o.querySelector('#pa_all').onclick = () => res('all'); o.querySelector('#pa_one').onclick = () => res('one'); o.querySelector('#pa_x').onclick = () => res(null); });
+      closeModal(); if (!pick) return; withTags = pick === 'all';
+    } else if (!await askConfirm(`Setujui @${x.username} main ${x.game} tanpa menunggu kunjungan dicatat?`, 'Setujui')) return;
+    return run(a, async () => { const d = await call('play_approve', {id: x.id, withTags}); toast(d.approved + ' catatan disetujui', 'ok'); loadPlays(); });
+  }
+  if (r){ const x = PV.items.find(i => i.id === r.dataset.pr);
+    const o = openModal(`<div class="row between"><h3>Tolak catatan game</h3><button class="x" id="mx">×</button></div><p class="hint">@${esc(x.username)} • ${esc(x.game)}${x.source === 'self' && x.tags.length ? ' — teman yang ditandai ikut batal' : ''}</p><label>Alasan <small>(opsional)</small></label><input id="prr" maxlength="100" placeholder="mis. tidak memainkan game ini"><button class="btn danger" id="prs">Tolak</button>`);
+    o.querySelector('#mx').onclick = closeModal;
+    o.querySelector('#prs').onclick = ev => run(ev.currentTarget, async () => { await call('play_reject', {id: x.id, userId: x.userId, reason: o.querySelector('#prr').value}); closeModal(); toast('Catatan ditolak', 'ok'); loadPlays(); });
+  }
+}
 function drawVisit(){
   document.querySelectorAll('.seg [data-m]').forEach(b => b.classList.toggle('on', b.dataset.m === V.mode));
-  ({game: visitGame, event: visitEvent})[V.mode]();
+  ({game: visitGame, event: visitEvent, plays: visitPlays})[V.mode]();
 }
 const campOpts = () => { const cs = V.meta.campaigns, pick = cs.some(c => c.id === S.campId) ? S.campId : (cs.length === 1 ? cs[0].id : ''); return '<option value="">— tanpa stamp —</option>' + cs.map(c => `<option value="${esc(c.id)}" ${c.id === pick ? 'selected' : ''}>${esc(c.icon || '')} ${esc(c.name)}</option>`).join(''); };
 const hourOpts = (sel) => Array.from({length: 16}, (_, i) => (i + 1) / 2 + 0.5 > 0 ? (i + 1) / 2 : 0).map(h => `<option value="${h}" ${h === sel ? 'selected' : ''}>${String(h).replace('.', ',')} jam</option>`).join('');
@@ -2084,7 +2174,7 @@ function visitGame(){
         <label>Game</label><select id="hg">${list.filter(g => g.hof).map(g => `<option value="${esc(g.id)}">${esc(g.name)} (${g.hofMode === 'sum' ? 'akumulasi' : 'tertinggi'})</option>`).join('')}</select>
         <label>Pemain & skor</label>${scoreRows(12, '')}<button class="btn" id="hgo">Simpan skor</button></section>` : ''}`;
     const hs = $('#hofS'); if (hs){ bindScoreAdd(hs, 12);
-      $('#hgo').onclick = ev => run(ev.currentTarget, async () => { await call('score_staff', {gameId: $('#hg').value, players: readScoreRows(hs)}); toast('Skor tercatat', 'ok'); hs.querySelectorAll('.su,.ss').forEach(i => i.value = ''); }); }
+      $('#hgo').onclick = ev => run(ev.currentTarget, async () => { await call('score_staff', {gameId: $('#hg').value, players: readScoreRows(hs)}); toast('Skor tercatat', 'ok'); if (hs._scoreReset) hs._scoreReset(); else hs.querySelectorAll('.su,.ss').forEach(i => i.value = ''); }); }
     loadReview();
     const gpk = attachPicker($('#gu'));
     $('#ggo').onclick = ev => run(ev.currentTarget, async () => {
@@ -2464,6 +2554,7 @@ async function renderTools(){
   el.innerHTML = `<h3>Data & Cadangan</h3>
     <label>Ekspor ke CSV</label><div class="row"><select id="exT">${tables.map(t => `<option>${esc(t)}</option>`).join('')}</select><button class="btn sm" id="exGo">Unduh</button></div>
     <div class="row" style="margin-top:12px"><button class="btn ghost" id="logBtn">Log aktivitas admin</button><button class="btn ghost" id="bkBtn">Cadangan</button></div>
+    <button class="btn ghost" id="clnBtn" style="margin-top:8px">🧹 Bersihkan data lama sekarang</button>
     <div class="row" style="margin-top:8px"><button class="btn ghost" id="srBtn">Catatan skor Hall of Fame</button></div>`;
   $('#srBtn').onclick = ev => run(ev.currentTarget, async () => scoreRoundsModal(await call('score_rounds')));
   $('#exGo').onclick = ev => run(ev.currentTarget, async () => { const d = await call('export_csv', {table: $('#exT').value}); downloadText(d.filename, d.csv); toast(d.rows + ' baris diunduh', 'ok'); });
@@ -2473,6 +2564,8 @@ async function renderTools(){
     o.querySelector('#mx').onclick = closeModal;
   });
   $('#bkBtn').onclick = ev => run(ev.currentTarget, async () => backupModal(await call('backups_list')));
+  $('#clnBtn').onclick = async ev => { const b = ev.currentTarget; if (!await askConfirm('Hapus permanen catatan main & skor HoF yang kedaluwarsa/ditolak, serta notifikasi yang sudah dibaca, yang lebih lama dari batas di pengaturan "cleanup_days" (bawaan 90 hari)? Catatan sah & skor yang dibatalkan admin tetap disimpan. Ini juga berjalan otomatis tiap hari.', 'Bersihkan')) return;
+    run(b, async () => { const d = await call('cleanup_now'); toast(`Terhapus: ${d.plays} catatan main, ${d.rounds} skor HoF, ${d.notifs} notifikasi`, 'ok'); }); };
 }
 function scoreRoundsModal(d){
   while (modals.length) closeModal();

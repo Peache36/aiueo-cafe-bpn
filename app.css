@@ -433,3 +433,4 @@ input:focus,textarea:focus,select:focus{border-color:var(--terra)}
 .pul{color:var(--terra);cursor:pointer;text-decoration:none;font-weight:600}
 .modal .tiles.pptiles{grid-template-columns:repeat(4,1fr);gap:6px}.pptiles .tile{padding:10px 6px;min-width:0;text-align:center}.pptiles .tile b{font-size:20px}.pptiles .tile small{font-size:10.5px;line-height:1.2;display:block}
 .modal .ggrid.ppg{grid-template-columns:repeat(3,1fr);gap:8px}.ggrid.ppg .gimg{aspect-ratio:1;height:auto}.ggrid.ppg b{font-size:12px}.ggrid.ppg small{font-size:11px}
+.pvn{font-weight:700;margin-left:4px;opacity:.75}
