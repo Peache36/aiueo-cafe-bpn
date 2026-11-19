@@ -31,6 +31,7 @@ alter table public.aiueo_users add column if not exists "referred_by" text not n
 alter table public.aiueo_users add column if not exists "ref_rewarded" text not null default '';
 alter table public.aiueo_users add column if not exists "leave_key" text not null default '';
 alter table public.aiueo_users add column if not exists "leave_ts" text not null default '';
+alter table public.aiueo_users add column if not exists "public_profile" text not null default '';
 create index if not exists ix_aiueo_users_user_id on public.aiueo_users ("user_id");
 create index if not exists ix_aiueo_users_phone on public.aiueo_users ("phone");
 create index if not exists ix_aiueo_users_member_code on public.aiueo_users ("member_code");
@@ -355,6 +356,26 @@ create index if not exists ix_aiueo_visitgames_group_id on public.aiueo_visitgam
 create index if not exists ix_aiueo_visitgames_ts on public.aiueo_visitgames ("ts");
 alter table public.aiueo_visitgames enable row level security;
 revoke all on public.aiueo_visitgames from anon, authenticated;
+
+create table if not exists public.aiueo_playlogs (rn bigint generated always as identity primary key);
+alter table public.aiueo_playlogs add column if not exists "id" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "user_id" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "game_id" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "game_name" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "by_user" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "source" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "parent" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "status" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "ts" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "ms" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "vg_id" text not null default '';
+alter table public.aiueo_playlogs add column if not exists "note" text not null default '';
+create index if not exists ix_aiueo_playlogs_id on public.aiueo_playlogs ("id");
+create index if not exists ix_aiueo_playlogs_user_id on public.aiueo_playlogs ("user_id");
+create index if not exists ix_aiueo_playlogs_status on public.aiueo_playlogs ("status");
+create index if not exists ix_aiueo_playlogs_ts on public.aiueo_playlogs ("ts");
+alter table public.aiueo_playlogs enable row level security;
+revoke all on public.aiueo_playlogs from anon, authenticated;
 
 create table if not exists public.aiueo_activities (rn bigint generated always as identity primary key);
 alter table public.aiueo_activities add column if not exists "id" text not null default '';

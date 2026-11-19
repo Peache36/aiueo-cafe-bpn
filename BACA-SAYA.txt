@@ -198,3 +198,15 @@ LAIN-LAIN
 - Admin > Party > "Kelola grup Party": cari grup, keluarkan anggota, ubah nama, ganti ketua, buka kunci, bubarkan — kapan saja, tanpa memakai jatah siapa pun (jatah anggota yang dikeluarkan/dibubarkan dikembalikan).
 - Reset jatah oleh admin kini mereset jatah bergabung & keluar.
 - Kolom baru: Users (leave_key, leave_ts), Groups (lock_key, lock_ts) → JALANKAN schema.sql terbaru.
+
+=== v7.21 — Catat game pelanggan & profil publik ===
+- Pelanggan: tombol "🎲 Saya main ini" di detail game (Discover). Status ⏳ menunggu → otomatis ✓ sah saat kasir mencatat kunjungannya (maks 12 jam; kalau kunjungan sudah dicatat dalam 12 jam terakhir, langsung sah). Tidak tercatat dalam 12 jam → kedaluwarsa. Tidak memberi VP. Batas 10 catatan/hari dan 3×/game/hari.
+- Selama masih ⏳, pelanggan bisa Ubah (game/teman) atau Batalkan (Profil > Catatan main).
+- Teman yang ditandai otomatis sah bila kunjungannya juga dicatat (tanpa konfirmasi), mendapat notifikasi, dan bisa menekan "Bukan saya" selama 7 hari.
+- Bantuan menandai teman (pelanggan, hanya username): chip anggota Party, chip "Sering main bareng", saran saat mengetik @username, dan scan QR member teman.
+- Kasir/GM: panel "Catatan game hari ini" di layar pelanggan (Kasir) dengan tombol Tolak (+alasan).
+- Staf: kolom pemain kini chip pintar — cari nama, @username, atau 4 digit akhir no. HP; chip "Hadir hari ini"; otomatis muncul "+ Semua" anggota Party; scan QR. Dipakai di Catat game, peserta event, dan Beri voucher.
+- Profil publik: ketuk @username (feed, Party, HoF, ulasan) → tier (tanpa angka VP), member sejak, nama Party, badge, koleksi main, statistik, prestasi musim/turnamen. Nama asli, nomor, email, kode member, stamp, kunjungan, voucher tetap rahasia.
+- Opsi di Profil: "Tampilkan profilku ke pemain lain" (bawaan: aktif). Bila dimatikan, orang lain hanya melihat username & tier.
+- Koleksi di profil kini menampilkan ringkasan: "N× main • N game berbeda • paling sering …".
+- Tabel baru PlayLogs + kolom Users.public_profile → JALANKAN schema.sql terbaru.

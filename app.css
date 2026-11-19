@@ -422,3 +422,14 @@ input:focus,textarea:focus,select:focus{border-color:var(--terra)}
 .vchr code{font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:.06em;font-size:13px;color:var(--forest);background:rgba(255,255,255,.7);padding:4px 8px;border-radius:8px}
 @media (prefers-color-scheme:dark){.vchr{background:linear-gradient(90deg,#2b2511,var(--card))}.vchr code{background:rgba(0,0,0,.3);color:var(--ink)}}
 .agbox{padding:10px 12px;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:var(--card)}
+/* pilih pemain */
+.pk{margin:4px 0 8px}.pkc{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.pkc:empty{display:none}
+.pkc .chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px 6px 12px}.pkc .chip button{border:0;background:none;color:inherit;font-size:16px;line-height:1;cursor:pointer;padding:0 2px}
+.pkr{display:flex;gap:8px;align-items:center}.pkr .pki{flex:1;margin:0}
+.pks{display:flex;flex-direction:column;margin-top:4px;border-radius:12px;overflow:hidden}.pks:empty{display:none}
+.pks button{border:0;border-bottom:1px solid var(--line);background:var(--card);text-align:left;padding:10px 12px;font:inherit;color:var(--ink);cursor:pointer}.pks button small{color:var(--muted)}
+.pkx .pkg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.pkx .pkg>small{width:100%;color:var(--muted);font-size:11.5px}
+.pkx .chip{padding:5px 10px;font-size:12.5px}
+.pul{color:var(--terra);cursor:pointer;text-decoration:none;font-weight:600}
+.modal .tiles.pptiles{grid-template-columns:repeat(4,1fr);gap:6px}.pptiles .tile{padding:10px 6px;min-width:0;text-align:center}.pptiles .tile b{font-size:20px}.pptiles .tile small{font-size:10.5px;line-height:1.2;display:block}
+.modal .ggrid.ppg{grid-template-columns:repeat(3,1fr);gap:8px}.ggrid.ppg .gimg{aspect-ratio:1;height:auto}.ggrid.ppg b{font-size:12px}.ggrid.ppg small{font-size:11px}
