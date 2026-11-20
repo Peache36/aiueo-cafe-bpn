@@ -223,6 +223,7 @@ alter table public.aiueo_scorerounds add column if not exists "day" text not nul
 alter table public.aiueo_scorerounds add column if not exists "ts" text not null default '';
 alter table public.aiueo_scorerounds add column if not exists "ms" text not null default '';
 alter table public.aiueo_scorerounds add column if not exists "reason" text not null default '';
+alter table public.aiueo_scorerounds add column if not exists "vg_id" text not null default '';
 create index if not exists ix_aiueo_scorerounds_id on public.aiueo_scorerounds ("id");
 create index if not exists ix_aiueo_scorerounds_status on public.aiueo_scorerounds ("status");
 create index if not exists ix_aiueo_scorerounds_ts on public.aiueo_scorerounds ("ts");

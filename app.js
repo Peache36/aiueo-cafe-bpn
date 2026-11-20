@@ -40,7 +40,7 @@ const KEY = 'ls_token', PKEY = 'ls_phone';
 
 function tokenGet(){ try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch(e){ return null; } }
 function tokenSet(t, remember){ try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); (remember ? localStorage : sessionStorage).setItem(KEY, t); } catch(e){} }
-function tokenClear(){ try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch(e){} S.token = null; }
+function tokenClear(){ try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch(e){} S.token = null; setPmode(false); }
 function lastPhone(){ try { return localStorage.getItem(PKEY) || ''; } catch(e){ return ''; } }
 
 /* ---- indikator proses: bar di atas layar + pemblokir tap untuk aksi tulis (anti spam klik) ---- */
@@ -74,6 +74,7 @@ function netStart(action){
 }
 function call(action, payload){
   payload = payload || {};
+  if (pmodeOn()) payload = Object.assign({}, payload, {_asPlayer: true});
   /* permintaan identik yang masih berjalan dipakai bersama, jadi klik berulang tidak mengirim dua kali */
   let key = null;
   if (action !== 'poll'){
@@ -95,6 +96,13 @@ function call(action, payload){
   p.then(fin, fin);
   if (key) NET.inflight[key] = p;
   return p;
+}
+/* v7.25 Mode Pemain untuk kasir & GM */
+function pmodeOn(){ try { return localStorage.getItem('ls_pmode') === '1'; } catch(e){ return false; } }
+function setPmode(on){ try { on ? localStorage.setItem('ls_pmode', '1') : localStorage.removeItem('ls_pmode'); } catch(e){} }
+async function togglePmode(){
+  const on = !pmodeOn(); setPmode(on); S.tab = null;
+  try { await enterApp(); toast(on ? 'Mode Pemain — kamu tampil sebagai member' : 'Kembali ke Mode Staf', 'ok'); } catch(e){ setPmode(!on); handleErr(e); }
 }
 function toast(msg, type){
   const d = document.createElement('div'); d.textContent = msg; if (type) d.className = type;
@@ -182,6 +190,7 @@ function preloadLibs(){ (S.user && S.user.role === 'customer' ? needQr() : needJ
 async function enterApp(){
   const d = await call('bootstrap');
   S.user = d.user; S.view = d.view; P.v = d.version; S.settings = d.settings; S.events = d.events; setPing(d);
+  if (pmodeOn() && !S.user.canPlay){ setPmode(false); return enterApp(); }
   applyTheme(d.settings.theme_color);
   if (S.user.needProfile) return profileGate();
   buildShell();
@@ -296,12 +305,13 @@ function buildShell(){
   $('#app').innerHTML = `<div class="chrome">
       <div class="appbar">${LOGO.replace('<img', '<img class="lg"')}
         <div class="who" id="whoBtn" role="button" tabindex="0" aria-label="Buka profil"><small>Halo,</small><b>${esc(u.username || u.name)}</b>${u.role === 'customer' ? `<span class="mc">${esc(u.memberCode)}<span id="ptn"></span></span>` : '<span class="mc">Edit profil ›</span>'}</div>
-        ${u.role === 'customer' ? '<button class="bell" id="bell" aria-label="Notifikasi">' + ICON.bell + '<i id="bcnt"></i></button>' : ''}<span class="role">${ROLE_LABEL[u.role]}</span></div>
+        ${u.role === 'customer' ? '<button class="bell" id="bell" aria-label="Notifikasi">' + ICON.bell + '<i id="bcnt"></i></button>' : ''}${u.canPlay ? `<button class="pmode" id="pmBtn" title="${u.playerMode ? 'Kembali ke Mode Staf' : 'Pindah ke Mode Pemain'}">${u.playerMode ? '🧾 Staf' : '🎲 Main'}</button>` : ''}<span class="role">${u.playerMode ? 'Pemain' : ROLE_LABEL[u.role]}</span></div>
       <nav class="nav">${tabs.map(t => `<button data-tab="${t[0]}">${ICON[t[2]]}<span>${t[1]}</span></button>`).join('')}<i class="ind"></i></nav>
     </div>
     <div class="shell"><div id="phead"></div><main id="view"></main></div>`;
   if (u.role === 'customer'){ setBell(S.view ? S.view.notif : 0); setPartyName(S.view && S.view.party); $('#bell').onclick = openInbox; }
   $('#whoBtn').onclick = () => go('me');
+  if ($('#pmBtn')) $('#pmBtn').onclick = togglePmode;
   $('.nav').onclick = e => { const b = e.target.closest('button'); if (b) go(b.dataset.tab); };
   go(tabs[0][0]);
   startPoll(); hideSplash();
@@ -755,7 +765,7 @@ async function loadReport(){
   try {
     const d = await call('report', {days: S.repDays || 30}), m = d.summary, seg = d.segments, segT = Math.max(1, seg.active + seg.dormant + seg.lost + seg.never);
     const tile = (v, l, dl) => `<div class="tile"><b>${typeof v === 'number' ? fmtScore(v) : v}</b><small>${l}</small>${dl || ''}</div>`;
-    const tt = d.types.reguler + d.types.party + d.types.allday || 1;
+    const hh = (d.types.happy || 0) + (d.types.party_happy || 0), tt = d.types.reguler + d.types.party + d.types.allday + hh || 1;
     el.innerHTML = `<div class="row between"><h3 style="margin:0">Laporan</h3><small>${esc(d.from)} – ${esc(d.to)}</small></div>
       <div class="seg" id="rpd" style="margin:10px 0">${[[7,'7 hari'],[30,'30 hari'],[90,'90 hari'],[365,'1 tahun']].map(([k, l]) => `<button data-d="${k}" class="${d.days === k ? 'on' : ''}">${l}</button>`).join('')}</div>
       <div class="tiles rtiles">${tile(m.visits, 'Kunjungan', delta(m.visits, m.prevVisits))}${tile(m.members, 'Member datang', delta(m.members, m.prevMembers))}${tile(m.newMembers, 'Member baru', delta(m.newMembers, m.prevNew))}${tile(m.avgPerDay, 'Kunjungan/hari')}
@@ -764,7 +774,7 @@ async function loadReport(){
       <h4 class="rh">Kunjungan per hari</h4>${vbars(d.daily.map(x => x.visits), d.daily.map(x => x.date.slice(5).split('-').reverse().join('/')), Math.ceil(d.daily.length / 6), 'kunjungan')}
       <div class="rgrid"><div><h4 class="rh">Jam ramai</h4>${vbars(d.byHour.slice(8).concat(d.byHour.slice(0, 2)), [...Array(16).keys()].map(i => String((i + 8) % 24).padStart(2, '0')).concat(['00','01']).slice(0, 18), 3, 'kunjungan')}</div>
         <div><h4 class="rh">Hari ramai</h4>${vbars([1,2,3,4,5,6,0].map(i => d.byDow[i]), [1,2,3,4,5,6,0].map(i => DOW[i]), 1, 'kunjungan')}</div></div>
-      <h4 class="rh">Jenis kunjungan</h4>${hbars([['Reguler', d.types.reguler], ['Party', d.types.party], ['Seharian', d.types.allday]].map(([n, v]) => ({name: n, n: v, extra: `<small>(${Math.round(v / tt * 100)}%)</small>`})), 'kunjungan')}
+      <h4 class="rh">Jenis kunjungan</h4>${hbars([['Reguler', d.types.reguler], ['Happy Hour', hh], ['Party', d.types.party], ['Seharian', d.types.allday]].map(([n, v]) => ({name: n, n: v, extra: `<small>(${Math.round(v / tt * 100)}%)</small>`})), 'kunjungan')}
       <h4 class="rh">Kondisi member</h4>${hbars([['Aktif (≤30 hari)', seg.active], ['Mulai jarang (31–90 hari)', seg.dormant], ['Lama tidak datang (>90 hari)', seg.lost], ['Belum pernah datang', seg.never]].map(([n, v]) => ({name: n, n: v, extra: `<small>(${Math.round(v / segT * 100)}%)</small>`})), 'member')}
       <p class="hint" style="font-size:11.5px;margin:4px 0 0">"Mulai jarang" cocok dikirimi notifikasi promo dari menu Notifikasi.</p>
       <h4 class="rh">Game paling sering dimainkan</h4>${hbars(d.topGames, 'kali')}
@@ -959,14 +969,15 @@ function renderCust(){
 }
 
 function visitControlsHtml(){
-  return `<div class="vctl"><div class="seg" id="vtSeg"><button data-t="reguler" class="${K.type==='reguler'?'on':''}">Reguler</button><button data-t="allday" class="${K.type==='allday'?'on':''}">All-Day Pass</button></div>
-    <div id="vhw" style="${K.type==='allday'?'display:none':''}"><label>Durasi main</label><select id="vh">${hourOpts(K.hours)}</select></div>
+  return `<div class="vctl"><div class="seg" id="vtSeg"><button data-t="reguler" class="${K.type==='reguler'?'on':''}">Reguler</button><button data-t="happy" class="${K.type==='happy'?'on':''}">Happy Hour</button><button data-t="allday" class="${K.type==='allday'?'on':''}">All-Day Pass</button></div>
+    <div id="vhw" style="${K.type==='allday'?'display:none':''}"><label>Durasi main</label><select id="vh">${hourOpts(K.hours)}</select><small class="hint" id="vhh" style="${K.type==='happy'?'':'display:none'}">Happy Hour: stamp hanya jika main minimal ${esc(String((V.meta && V.meta.vp && V.meta.vp.happyStampHours) || 3))} jam.</small></div>
     <button class="btn" id="vgo">${visitBtnText()}</button></div>`;
 }
 const visitBtnText = () => G.on && K.mode === 'grp' ? `Catat kunjungan ke ${G.members.length} orang` : 'Catat kunjungan';
 function bindVisitControls(box, after){
   box.querySelector('#vtSeg').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; K.type = b.dataset.t;
-    box.querySelectorAll('#vtSeg button').forEach(x => x.classList.toggle('on', x === b)); box.querySelector('#vhw').style.display = K.type === 'allday' ? 'none' : ''; };
+    box.querySelectorAll('#vtSeg button').forEach(x => x.classList.toggle('on', x === b)); box.querySelector('#vhw').style.display = K.type === 'allday' ? 'none' : ''; const hh = box.querySelector('#vhh'); if (hh) hh.style.display = K.type === 'happy' ? '' : 'none';
+    const mh = Number((V.meta && V.meta.vp && V.meta.vp.happyStampHours) || 3); if (K.type === 'happy' && K.hours < mh){ K.hours = mh; const sel = box.querySelector('#vh'); if (sel) sel.value = String(mh); } };
   box.querySelector('#vh').onchange = e => { K.hours = Number(e.target.value); };
 }
 const visitSummary = r => (r.vp ? '+' + r.vp + ' VP' : 'tanpa VP') + (r.stamp ? ' • +1 stamp' : '') + (r.stampMsg ? ' • ' + r.stampMsg : '');
@@ -1724,9 +1735,15 @@ function scoreRows(max, selfName){
   return `<div id="sr">${Array.from({length: 2}, (_, i) => scoreRow(i === 0 ? selfName : '', i === 0 && !!selfName)).join('')}</div>${max > 2 ? '<button class="link" id="sadd">+ Tambah pemain</button>' : ''}`;
 }
 function scoreRow(name, locked){
-  return `<div class="row srw" style="margin-bottom:6px"><input class="su" placeholder="@username" autocapitalize="none" autocomplete="off" spellcheck="false" value="${esc(name || '')}" ${locked ? 'readonly' : ''} style="flex:1.4"><input class="ss" type="number" inputmode="decimal" placeholder="skor" style="flex:1"></div>`;
+  return `<div class="row srw" style="margin-bottom:6px"><input class="su" placeholder="@username" autocapitalize="none" autocomplete="off" spellcheck="false" value="${esc(name || '')}" ${locked ? 'readonly' : ''} style="flex:1.4"><input class="ss" type="text" inputmode="decimal" autocomplete="off" placeholder="skor" style="flex:1">${SGN}</div>`;
 }
-function readScoreRows(root){ return [...root.querySelectorAll('.srw')].map(r => ({username: r.querySelector('.su').value.trim(), score: r.querySelector('.ss').value})).filter(x => x.username || x.score !== ''); }
+/* v7.26 skor boleh minus: tombol ± (keyboard angka HP sering tanpa tanda minus) */
+const SGN = '<button type="button" class="sgn" data-sgn title="Ubah plus / minus" aria-label="Ubah plus atau minus">±</button>';
+function numIn(v){ return String(v == null ? '' : v).trim().replace(/\s/g, '').replace(/^[−–]/, '-').replace(',', '.'); }
+document.addEventListener('click', e => { const b = e.target.closest('[data-sgn]'); if (!b) return; e.preventDefault();
+  const i = b.previousElementSibling; if (!i || i.disabled) return; const v = numIn(i.value);
+  i.value = v.startsWith('-') ? v.slice(1) : '-' + v; i.focus(); i.dispatchEvent(new Event('input', {bubbles: true})); });
+function readScoreRows(root){ return [...root.querySelectorAll('.srw')].map(r => ({username: r.querySelector('.su').value.trim(), score: numIn(r.querySelector('.ss').value)})).filter(x => x.username || x.score !== ''); }
 /* v7.23 bantuan pilih pemain di form skor HoF: saran saat mengetik + chip cepat + scan QR */
 function scoreAssist(root, max){
   const sr = root.querySelector('#sr'); if (!sr || sr._as) return; sr._as = 1;
@@ -2094,8 +2111,8 @@ function drawVisit(){
 const campOpts = () => { const cs = V.meta.campaigns, pick = cs.some(c => c.id === S.campId) ? S.campId : (cs.length === 1 ? cs[0].id : ''); return '<option value="">— tanpa stamp —</option>' + cs.map(c => `<option value="${esc(c.id)}" ${c.id === pick ? 'selected' : ''}>${esc(c.icon || '')} ${esc(c.name)}</option>`).join(''); };
 const hourOpts = (sel) => Array.from({length: 16}, (_, i) => (i + 1) / 2 + 0.5 > 0 ? (i + 1) / 2 : 0).map(h => `<option value="${h}" ${h === sel ? 'selected' : ''}>${String(h).replace('.', ',')} jam</option>`).join('');
 function showVisitResult(d){
-  const o = openModal(`<h3>${d.type === 'party' ? '🎉 Party Play' : d.quorumMet === false ? 'Dicatat sebagai Reguler' : 'Kunjungan dicatat'}</h3>
-    ${d.quorumMet === false ? `<div class="notice">Kuorum belum terpenuhi (hadir ${d.present}${d.required != null ? ' dari minimal ' + d.required : ''}), jadi dihitung Reguler tanpa diskon Party.</div>` : ''}
+  const o = openModal(`<h3>${d.type === 'party' ? '🎉 Party Play' : d.type === 'party_happy' ? '🎉 Party Play • Happy Hour' : d.quorumMet === false ? (d.type === 'happy' ? 'Dicatat sebagai Happy Hour perorangan' : 'Dicatat sebagai Reguler') : d.type === 'happy' ? 'Kunjungan Happy Hour dicatat' : 'Kunjungan dicatat'}</h3>
+    ${d.quorumMet === false ? `<div class="notice">Kuorum belum terpenuhi (hadir ${d.present}${d.required != null ? ' dari minimal ' + d.required : ''}), jadi dihitung ${d.type === 'happy' ? 'Happy Hour perorangan' : 'Reguler'} tanpa diskon Party.</div>` : ''}
     <div class="list">${d.results.map(r => `<div><div class="t"><b>${esc(r.label)}</b><small>${r.dup ? 'Baru dicatat <10 menit lalu — ditahan' : (r.vp ? '+' + r.vp + ' VP' : 'tanpa VP') + (r.stamp ? ' • +1 stamp' : '') + (r.stampMsg ? ' • ' + esc(r.stampMsg) : '')}</small></div></div>`).join('')}</div>
     <button class="btn" id="vo">Selesai</button>`);
   o.querySelector('#vo').onclick = closeModal;
@@ -2115,7 +2132,8 @@ function drawGroupPanel(){
     <p class="hint" style="font-size:13px;margin:8px 0">${g.status === 'active' ? (g.firstVisit ? `Kunjungan pertama: semua <b>${g.n}</b> anggota harus hadir.` : `Minimal hadir: <b>${g.required}</b> dari ${g.n}.`) : `Anggota kurang dari 4 — dihitung Reguler. Sisa ${g.daysLeft} hari sebelum bubar.`}</p>
     <div class="list">${g.members.map(m => `<label class="chk" style="display:flex;gap:10px;align-items:center;padding:8px 0"><input type="checkbox" data-p="${esc(m.id)}"> <span class="t"><b>${esc(m.label)}${m.leader ? ' 👑' : ''}</b><br><small>${esc(m.fullName || '')}${m.doneToday ? ' • sudah tercatat hari ini' : ''}</small></span></label>`).join('')}</div>
     <button class="link" id="va">Pilih semua</button>
-    <div class="row"><div style="flex:1"><label>Durasi</label><select id="vh">${hourOpts(2)}</select></div><div style="flex:1"><label>Event stamp</label><select id="vc">${campOpts()}</select></div></div>
+    <div class="row"><div style="flex:1"><label>Durasi</label><select id="vh">${hourOpts(3)}</select></div><div style="flex:1"><label>Event stamp</label><select id="vc">${campOpts()}</select></div></div>
+    <label class="chk" style="margin-top:6px"><input type="checkbox" id="vhap"> Happy Hour <small>(stamp jika main minimal ${esc(String((V.meta && V.meta.vp && V.meta.vp.happyStampHours) || 3))} jam)</small></label>
     <div class="notice" id="vs"></div>
     <button class="btn" id="vgo">Konfirmasi kehadiran</button></section>`;
   const picks = () => [...document.querySelectorAll('#vd [data-p]')];
@@ -2130,14 +2148,15 @@ function drawGroupPanel(){
     const ids = picks().filter(x => x.checked).map(x => x.dataset.p);
     if (!ids.length) return toast('Pilih anggota yang hadir', 'err');
     const hrs = Number($('#vh').value), cmp = $('#vc').value;
-    const d = await call('visit_party', {groupId: g.id, presentIds: ids, hours: hrs, campaignId: cmp});
+    const hap = $('#vhap').checked;
+    const d = await call('visit_party', {groupId: g.id, presentIds: ids, hours: hrs, campaignId: cmp, happy: hap});
     showVisitResult(d);
     const held = d.results.filter(r => r.dup).map(r => r.memberId);
     if (held.length){
       const o = modals[modals.length - 1];
       const b = document.createElement('button'); b.className = 'btn ghost'; b.textContent = `Catat tetap ${held.length} yang ditahan`;
       b.onclick = () => run(b, async () => {
-        const d2 = await call('visit_party', {groupId: g.id, presentIds: ids, onlyIds: held, allowDup: true, hours: hrs, campaignId: cmp});
+        const d2 = await call('visit_party', {groupId: g.id, presentIds: ids, onlyIds: held, allowDup: true, hours: hrs, campaignId: cmp, happy: hap});
         closeModal(); showVisitResult(d2);
       });
       o.querySelector('#vo').before(b);
@@ -2281,7 +2300,7 @@ async function rosterPanel(id, inModal){
   const sorted = att.filter(p => p.score !== '' && p.score !== undefined).map(p => Number(p.score)).sort((x, y) => y - x);
   const rankOf = p => p.score === '' || p.score === undefined ? '' : `<span class="pill">#${sorted.indexOf(Number(p.score)) + 1}</span>`;
   const rows = att.sort((x, y) => (y.score === '' ? -1e12 : Number(y.score)) - (x.score === '' ? -1e12 : Number(x.score))).map(p => `<div class="rrow" data-uid="${esc(p.userId)}"><b>${pts ? rankOf(p) + ' ' : ''}@${esc(p.username)}</b>
-      ${pts ? `<input class="rsc" type="number" step="any" inputmode="decimal" placeholder="${esc(a.scoreLabel)}" value="${esc(p.score)}" ${canEdit ? '' : 'disabled'}>` : ''}
+      ${pts ? `<input class="rsc" type="text" inputmode="decimal" autocomplete="off" placeholder="${esc(a.scoreLabel)}" value="${esc(p.score)}" ${canEdit ? '' : 'disabled'}>${canEdit ? SGN : ''}` : ''}
       ${tour ? `<select class="rpl" ${canEdit ? '' : 'disabled'}><option value="0">—</option>${[1, 2, 3].map(n => `<option value="${n}" ${p.placement === n ? 'selected' : ''}>Juara ${n}</option>`).join('')}</select>` : ''}
       ${canEdit ? `<button class="x rdel" data-rm="${esc(p.userId)}" aria-label="Hapus peserta">×</button>` : ''}</div>`).join('');
   $('#vd').innerHTML = `<section class="card"><h3>${esc(a.title)}</h3><p class="hint" style="font-size:13px;margin:0 0 8px">Hadir ${att.length} • belum hadir ${reg.length}${a.vp ? ' • +' + a.vp + ' VP per hadir' : ''}${closed ? ' • <b>Selesai</b>' : ''}</p>
@@ -2306,7 +2325,7 @@ async function rosterPanel(id, inModal){
     const auto = $('#rauto') ? $('#rauto').checked : false;
     const rowsIn = [...document.querySelectorAll('#vd .rrow')].map(r => {
       const o = {userId: r.dataset.uid}, sc = r.querySelector('.rsc'), pl = r.querySelector('.rpl');
-      if (sc) o.score = sc.value; if (pl && !auto) o.placement = +pl.value; return o;
+      if (sc) o.score = numIn(sc.value); if (pl && !auto) o.placement = +pl.value; return o;
     });
     await call('act_results_save', {activityId: id, rows: rowsIn, auto, close});
     toast(close ? 'Hasil disimpan, event ditutup' : 'Hasil disimpan', 'ok');
@@ -2583,13 +2602,13 @@ function scoreRoundsModal(d){
 }
 function scoreEditModal(roundId, game, list, after){
   const m = openModal(`<div class="row between"><h3>Ubah skor ${esc(game)}</h3><button class="x" id="mx">×</button></div>
-    ${list.map(p => `<label>@${esc(p.username)}</label><input type="number" step="any" inputmode="decimal" data-su="${esc(p.username)}" value="${esc(p.score)}">`).join('')}
+    ${list.map(p => `<label>@${esc(p.username)}</label><div class="row" style="gap:6px"><input type="text" inputmode="decimal" autocomplete="off" data-su="${esc(p.username)}" value="${esc(p.score)}" style="flex:1">${SGN}</div>`).join('')}
     <label>Alasan perubahan *</label><input id="ser" maxlength="100" placeholder="mis. salah ketik, seharusnya 32">
     <p class="hint" style="font-size:12.5px">Papan Hall of Fame dihitung ulang otomatis. Pemain di meja ini mendapat notifikasi.</p>
     <button class="btn" id="ses">Simpan perubahan</button>`);
   m.querySelector('#mx').onclick = closeModal;
   m.querySelector('#ses').onclick = ev => run(ev.currentTarget, async () => {
-    await call('score_edit', {roundId, reason: m.querySelector('#ser').value, scores: [...m.querySelectorAll('[data-su]')].map(x => ({username: x.dataset.su, score: x.value}))});
+    await call('score_edit', {roundId, reason: m.querySelector('#ser').value, scores: [...m.querySelectorAll('[data-su]')].map(x => ({username: x.dataset.su, score: numIn(x.value)}))});
     closeModal(); toast('Skor diperbarui', 'ok'); if (after) after();
   });
 }

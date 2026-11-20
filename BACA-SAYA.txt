@@ -224,3 +224,31 @@ LAIN-LAIN
 - Pembersihan otomatis tiap hari (09:00 WITA): catatan main yang kedaluwarsa/ditolak/"bukan saya"/dibatalkan, catatan skor HoF yang kedaluwarsa/ditolak/tidak pernah dikonfirmasi, dan notifikasi yang sudah dibaca — yang lebih lama dari 90 hari — dihapus permanen. Catatan sah dan skor yang dibatalkan admin (void) TETAP disimpan.
 - Batas hari bisa diubah di Admin > Sistem > Aturan: "cleanup_days" (30–730, bawaan 90). Tombol "🧹 Bersihkan data lama sekarang" di Admin > Sistem untuk menjalankan manual (tercatat di log admin).
 - Tidak ada kolom baru → schema.sql tidak perlu dijalankan ulang.
+
+=== v7.24 — Happy Hour ===
+- Kasir (perorangan & Mode Grup): pilihan jenis kunjungan kini Reguler / Happy Hour / All-Day Pass. Memilih Happy Hour otomatis menyetel durasi ke batas minimal stamp.
+- Party Play: centang "Happy Hour" sebelum Konfirmasi kehadiran. Kuorum terpenuhi → "Party Play (Happy Hour)" (tetap dihitung sebagai kunjungan Party untuk kunci grup & badge Party Player). Kuorum belum terpenuhi → Happy Hour perorangan.
+- Stamp Happy Hour hanya diberikan jika main minimal 3 jam (pengaturan "happy_stamp_hours").
+- Pengaturan baru di Admin > Sistem > Aturan: VP per kunjungan Happy Hour (vp_play_happy), VP tambahan per jam Happy Hour setelah jam ke-2 (vp_hour_happy), minimal jam stamp Happy Hour (happy_stamp_hours, bawaan 3). VP bawaan 0.
+- Laporan: jenis kunjungan menampilkan Happy Hour.
+- Catat kunjungan tetap hanya kasir & admin.
+- Tidak ada kolom baru → schema.sql tidak perlu dijalankan ulang.
+
+=== v7.25 — Kasir & GM juga bisa jadi pemain ===
+- Akun kasir & GM punya tombol "🎲 Main" di bilah atas → Mode Pemain: tampilan persis member (Beranda, Party, Discover, Hall of Fame, Profil, QR member, notifikasi). Tombol "🧾 Staf" untuk kembali. Admin tetap murni pengelola (tidak bisa jadi pemain).
+- Sebagai pemain, kasir & GM mendapat semua fitur member: VP & tier, leaderboard/Hall of Fame, event & turnamen, stamp & hadiah, Party, koleksi, badge, "Saya main ini", ulasan, wishlist, profil publik. Mereka juga bisa dicari/ditandai/dipilih sebagai pemain oleh pelanggan & staf lain.
+- Anti-curang: staf TIDAK bisa mencatat untuk dirinya sendiri — kunjungan, stamp, tukar hadiah, VP, voucher, catat game, skor HoF, hasil/kehadiran event, setujui/tolak catatan main, putuskan skor Top 3 yang melibatkan dirinya. Harus dicatat staf lain atau admin. Pesan: "Tidak bisa untuk diri sendiri — minta staf lain atau admin mencatatnya".
+- Kasir bisa mencari kasir/GM lain lewat QR, nomor, username, atau kode member untuk mencatat kunjungannya.
+- Tidak ada kolom baru → schema.sql tidak perlu dijalankan ulang.
+
+=== v7.26 — Skor minus ===
+- Skor Hall of Fame, skor event/turnamen, dan Edit skor kini punya tombol "±" di sebelah kolom skor untuk mengubah plus/minus (keyboard angka di HP, terutama iPhone, sering tidak punya tanda minus). Contoh Mahjong Riichi: ketik 12500 lalu tekan ± → -12500.
+- Server memang sudah menerima skor minus; leaderboard akumulasi menjumlahkannya (minus mengurangi total). Koma desimal otomatis dibaca sebagai titik.
+- Tidak ada kolom baru → schema.sql tidak perlu dijalankan ulang.
+
+=== v7.27 — Skor HoF otomatis tercatat main ===
+- Setiap skor Hall of Fame yang SAH (dikonfirmasi pemain, dicatat staf, atau disetujui Top 3) kini otomatis tercatat sebagai 1× main game itu untuk SEMUA pemain di meja: masuk Koleksi game, statistik profil (× main, game berbeda, paling sering), profil publik, jumlah "dimainkan" di katalog, dan badge berbasis main. Tidak perlu lagi "Catat game" terpisah.
+- Dihitung terpisah: bila di hari yang sama pemain juga dicatat lewat "Saya main ini"/Catat game untuk game yang sama, keduanya tetap dihitung (mis. beberapa hanchan Mahjong).
+- Skor yang dibatalkan admin (Batalkan skor) → catatan mainnya ikut dihapus. Skor ditolak/kedaluwarsa tidak pernah tercatat main.
+- Skor HoF sah yang SUDAH ADA sebelumnya otomatis dimasukkan ke catatan main sekali saat aplikasi pertama dibuka setelah update.
+- Kolom baru ScoreRounds.vg_id → JALANKAN schema.sql terbaru SEBELUM deploy.

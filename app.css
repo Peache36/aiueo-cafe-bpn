@@ -434,3 +434,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--terra)}
 .modal .tiles.pptiles{grid-template-columns:repeat(4,1fr);gap:6px}.pptiles .tile{padding:10px 6px;min-width:0;text-align:center}.pptiles .tile b{font-size:20px}.pptiles .tile small{font-size:10.5px;line-height:1.2;display:block}
 .modal .ggrid.ppg{grid-template-columns:repeat(3,1fr);gap:8px}.ggrid.ppg .gimg{aspect-ratio:1;height:auto}.ggrid.ppg b{font-size:12px}.ggrid.ppg small{font-size:11px}
 .pvn{font-weight:700;margin-left:4px;opacity:.75}
+.appbar .pmode{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 10px;font:600 12px/1 inherit;font-family:inherit;cursor:pointer;margin-right:6px;white-space:nowrap}
+.sgn{flex:0 0 auto;width:38px;min-height:38px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:700 17px/1 inherit;font-family:inherit;cursor:pointer;padding:0}
+.sgn:active{background:var(--line)}
