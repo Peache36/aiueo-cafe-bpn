@@ -205,6 +205,7 @@ alter table public.aiueo_games add column if not exists "hof_flag" text not null
 alter table public.aiueo_games add column if not exists "hof_checkin" text not null default '';
 alter table public.aiueo_games add column if not exists "hof_plays" text not null default '';
 alter table public.aiueo_games add column if not exists "hof_detail" text not null default '';
+alter table public.aiueo_games add column if not exists "hof_uma" text not null default '';
 create index if not exists ix_aiueo_games_id on public.aiueo_games ("id");
 alter table public.aiueo_games enable row level security;
 revoke all on public.aiueo_games from anon, authenticated;

@@ -252,3 +252,28 @@ LAIN-LAIN
 - Skor yang dibatalkan admin (Batalkan skor) → catatan mainnya ikut dihapus. Skor ditolak/kedaluwarsa tidak pernah tercatat main.
 - Skor HoF sah yang SUDAH ADA sebelumnya otomatis dimasukkan ke catatan main sekali saat aplikasi pertama dibuka setelah update.
 - Kolom baru ScoreRounds.vg_id → JALANKAN schema.sql terbaru SEBELUM deploy.
+
+=== v7.28 — Aktivitas terbaru: hanya badge & memainkan game ===
+- "Aktivitas terbaru" di Beranda kini hanya menampilkan: @pemain mendapat badge …, dan @pemain memainkan … (bersama N teman — jumlah saja, tanpa nama teman).
+- Tidak lagi ditampilkan/dicatat: ajakan referral ("mengajak @… bergabung"), ikut event/turnamen, juara event/turnamen, #1 Hall of Fame, juara musim, naik tier.
+- Aktivitas lama dengan jenis tersebut otomatis disembunyikan (tidak perlu menghapus data).
+- Tidak ada kolom baru → schema.sql tidak perlu dijalankan ulang.
+
+=== v7.29 — Mahjong Riichi: penilaian UMA ===
+- Admin > Game > Ubah (game Mahjong) > Hall of Fame: centang "🀄 Mahjong Riichi — penilaian UMA". Atur Poin awal (bawaan 30.000), Poin balik/oka (bawaan 30.000 = tanpa oka), UMA 4 pemain (bawaan +15/+5/−5/−15) dan UMA 3 pemain/Sanma (bawaan +15/0/−15). Saat aktif, cara hitung otomatis "Akumulasi".
+- Rumus: poin akhir = (skor − poin balik) ÷ 1000 + UMA sesuai urutan (+ oka untuk juara 1 bila poin balik > poin awal). Total poin akhir semeja selalu 0.
+- Form catat skor (staf & pelanggan): 4 baris pemain dengan pilihan arah duduk (Timur/Selatan/Barat/Utara). Saat mengetik, sistem langsung menampilkan urutan (#1–#4) dan poin akhir tiap pemain, serta cek total: harus 4 × poin awal (120.000), Sanma 3 × poin awal (90.000). Total salah → ditolak.
+- Skor seri diputus arah duduk: Timur → Selatan → Barat → Utara.
+- 3 pemain = Sanma (pakai arah Timur/Selatan/Barat). Selain 3 atau 4 pemain ditolak.
+- Leaderboard HoF Mahjong = total poin akhir UMA. Rincian menampilkan skor mentah → poin akhir, arah duduk, dan urutan semua pemain di meja.
+- Edit skor (admin): isi skor mentah, urutan & poin UMA dihitung ulang otomatis.
+- Perbaikan: centang "Tampilkan jumlah pertandingan tiap pemain" di form game dulu ikut mati setiap game disimpan (bentrok ID dengan "Periode"). Sudah diperbaiki — cek lagi centang ini di game yang perlu.
+- Kolom baru Games.hof_uma → JALANKAN schema.sql terbaru SEBELUM deploy.
+
+=== v7.30 — Admin tambah anggota Party + perbaikan tombol "Batalkan" ===
+- Admin > Party > Kelola grup Party: tombol "+ Anggota" di setiap grup. Cari pemain lewat @username, nama, 4 digit akhir HP, atau ketik nomor WhatsApp. Nomor yang belum punya akun → isi nama, akun dibuat otomatis (opsional kirim WA undangan).
+- Anggota yang ditambahkan admin langsung aktif (tanpa perlu menerima), tidak memakai jatah Party siapa pun, dan mendapat notifikasi. Ditolak bila grup penuh, sudah anggota, atau masih di Party lain (keluarkan dulu dari grup itu). Tercatat di log admin.
+- PERBAIKAN BUG: setelah anggota menerima undangan, layar ketua masih menampilkan orang itu di "Menunggu diterima" dengan tombol "Batalkan" (tampilan tidak diperbarui). Kini semua anggota grup — terutama ketua — otomatis memuat ulang tampilan Party dalam beberapa detik setiap ada perubahan grup, dan tombolnya berubah jadi "Keluarkan".
+- Ketua (dan pengundang) kini mendapat notifikasi "@x bergabung ke Party …" saat undangan diterima.
+- Pengaman tambahan: tombol "Batalkan" (30 menit) untuk nomor baru hilang begitu pemilik nomor sudah login sendiri — diganti "Keluarkan".
+- Tidak ada kolom baru → schema.sql tidak perlu dijalankan ulang (cukup bila v7.29 sudah dijalankan).

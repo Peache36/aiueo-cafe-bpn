@@ -538,7 +538,7 @@ function applyView(nv, animate){
   }
   const notifUp = animate && S.view && (nv.notif || 0) > (S.view.notif || 0);
   S.view = nv; S.animFrom = from; setBell(nv.notif || 0); setPartyName(nv.party);
-  if (S.tab === 'home') viewHome(); else if (S.tab === 'hist') viewHistory();
+  if (S.tab === 'home') viewHome(); else if (S.tab === 'hist') viewHistory(); else if (S.tab === 'party' && !document.querySelector('.overlay') && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#view input,#view textarea'))) viewParty();
   S.animFrom = null;
   if (added > 0) stampFx(added, readyUp); else if (readyUp) toast('🎁 Reward siap ditukar!', 'ok');
   if (notifUp) notifIncoming();
@@ -659,6 +659,31 @@ function viewProfile(){
 }
 
 /* ============================ ADMIN: KELOLA GRUP PARTY ============================ */
+/* v7.30 tambah anggota oleh admin: akun yang sudah ada atau nomor baru */
+function adminGroupAddModal(g){
+  const o = openModal(`<div class="row between"><h3>Tambah anggota • ${esc(g.name)}</h3><button class="x" id="mx">×</button></div>
+    <label>Username, nama, 4 digit HP, atau nomor WhatsApp baru</label><input id="aa_t" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="@rina atau 0812xxxx">
+    <div class="pks" id="aa_s"></div>
+    <div id="aa_new" style="display:none"><div class="notice" id="aa_m"></div>
+      <label>Nama pemilik nomor</label><input id="aa_n" maxlength="60" placeholder="mis. Rina">
+      <label class="chk"><input type="checkbox" id="aa_w" checked> Kirim WA undangan ke nomor ini</label></div>
+    <p class="hint" style="font-size:12px">Langsung jadi anggota aktif, tanpa perlu menerima undangan dan tanpa memakai jatah Party siapa pun. Pemain yang masih di grup lain harus dikeluarkan dulu dari grup itu.</p>
+    <button class="btn" id="aa_go">Tambahkan</button>`);
+  o.querySelector('#mx').onclick = closeModal;
+  const ti = o.querySelector('#aa_t'), sg = o.querySelector('#aa_s'), nw = o.querySelector('#aa_new');
+  let tm = 0;
+  ti.oninput = () => { nw.style.display = 'none'; clearTimeout(tm); const q = ti.value.trim(); if (q.length < 2 || /^\+?[\d\s-]{8,}$/.test(q)){ sg.innerHTML = ''; return; }
+    tm = setTimeout(async () => { try { const d = await call('username_suggest', {q}); sg.innerHTML = d.users.filter(u => u.username).map(u => `<button type="button" data-ad="${esc(u.username)}">@${esc(u.username)} <small>${esc(u.name || '')}${u.phone4 ? ' • ••' + esc(u.phone4) : ''}</small></button>`).join(''); } catch(e){} }, 250); };
+  sg.onclick = e => { const b = e.target.closest('[data-ad]'); if (b){ ti.value = '@' + b.dataset.ad; sg.innerHTML = ''; } };
+  o.querySelector('#aa_go').onclick = ev => run(ev.currentTarget, async () => {
+    const pl = {groupId: g.id, target: ti.value.trim().replace(/^@/, ''), q: S.agq || ''};
+    if (nw.style.display !== 'none'){ pl.newName = o.querySelector('#aa_n').value.trim(); pl.sendWa = o.querySelector('#aa_w').checked; if (!pl.newName) throw new Error('Isi nama pemilik nomor'); }
+    const d = await call('admin_group_add', pl);
+    if (d.needName){ nw.style.display = ''; o.querySelector('#aa_m').innerHTML = `Nomor <b>${esc(d.masked)}</b> belum punya akun. Isi namanya, akun dibuat otomatis.`; o.querySelector('#aa_n').focus(); return; }
+    closeModal(); renderAdminGroups(d);
+    toast(`@${d.added.username} ditambahkan${d.added.created ? ' (akun baru' + (d.added.wa ? ', WA terkirim' : '') + ')' : ''}`, 'ok');
+  });
+}
 async function loadAdminGroups(q){
   const el = $('#agCard'); if (!el) return;
   if (q === undefined) q = S.agq || '';
@@ -671,7 +696,7 @@ function renderAdminGroups(d){
     <div>${d.groups.length ? d.groups.map(g => `<div class="agbox"><div class="row between"><b>${esc(g.name)}</b><span class="pill ${g.status === 'active' ? 'ok' : 'off'}">${g.status === 'active' ? 'Aktif' : 'Menunggu'}</span></div>
       <small class="hint">${g.members.length} anggota • dibuat ${esc(g.created)}${g.locked ? ' • 🔒 terkunci s.d. ' + esc(dmy(g.locked)) : ' • 🔓 terbuka'}</small>
       <div class="list">${g.members.map(m => `<div><span class="ico">${m.isKid ? '🧒' : m.isLeader ? '👑' : '👤'}</span><div class="t"><b>${esc(m.label)}</b></div><button class="link" data-ak="${esc(g.id)}|${esc(m.id)}|${esc(m.label)}">Keluarkan</button></div>`).join('')}</div>
-      <div class="row" style="gap:8px;margin-top:6px"><button class="btn sm ghost" data-ae="${esc(g.id)}" style="width:auto">Ubah</button><button class="btn sm danger" data-ad="${esc(g.id)}" style="width:auto">Bubarkan</button></div></div>`).join('') : '<div class="empty">Tidak ada grup</div>'}</div>`;
+      <div class="row" style="gap:8px;margin-top:6px"><button class="btn sm" data-aa="${esc(g.id)}" style="width:auto;white-space:nowrap">+ Anggota</button><button class="btn sm ghost" data-ae="${esc(g.id)}" style="width:auto">Ubah</button><button class="btn sm danger" data-ad="${esc(g.id)}" style="width:auto">Bubarkan</button></div></div>`).join('') : '<div class="empty">Tidak ada grup</div>'}</div>`;
   let t = 0;
   el.querySelector('#agq').oninput = ev => { clearTimeout(t); t = setTimeout(() => { S.agq = ev.target.value; loadAdminGroups(S.agq); }, 350); };
   el.querySelectorAll('[data-ak]').forEach(b => b.onclick = async () => {
@@ -682,6 +707,7 @@ function renderAdminGroups(d){
     const g = S.agList.find(x => x.id === b.dataset.ad);
     if (await askConfirm(`Bubarkan grup "${g.name}"? Semua anggota keluar dan jatah Party mereka dikembalikan.`, 'Bubarkan')) run(b, async () => { renderAdminGroups(await call('admin_group_dissolve', {groupId: g.id, q: S.agq || ''})); toast('Grup dibubarkan', 'ok'); });
   });
+  el.querySelectorAll('[data-aa]').forEach(b => b.onclick = () => adminGroupAddModal(S.agList.find(x => x.id === b.dataset.aa)));
   el.querySelectorAll('[data-ae]').forEach(b => b.onclick = () => {
     const g = S.agList.find(x => x.id === b.dataset.ae), accts = g.members.filter(m => m.userId);
     const o = openModal(`<div class="row between"><h3>Ubah grup</h3><button class="x" id="mx">×</button></div>
@@ -1698,11 +1724,11 @@ async function hofPlayerDetail(gid, username){
   const d = await call('hof_detail', {gameId: gid, username});
   const o = openModal(`<div class="row between"><h3>${esc(d.game)}</h3><button class="x" id="mx">×</button></div>
     <div class="hdet-head">${hofAv(d.username, 'lg')}<div><b>@${esc(d.username)}</b><small>${esc(d.period)} • <a class="pul" data-pu="${esc(d.username)}">lihat profil</a></small></div></div>
-    <div class="tiles" style="margin:10px 0"><div class="tile"><b>${d.plays}</b><small>Tanding</small></div><div class="tile"><b>${fmtScore(d.total)}</b><small>Total</small></div><div class="tile"><b>${fmtScore(d.avg)}</b><small>Rata-rata</small></div><div class="tile"><b>${fmtScore(d.best)}</b><small>Terbaik</small></div></div>
-    <div class="list" style="max-height:52vh;overflow:auto">${d.items.length ? d.items.map((x, n) => `<div style="flex-wrap:wrap"><span class="ico">#${d.items.length - n}</span><div class="t"><b>${fmtScore(x.score)} poin${x.pos ? ` • posisi ${x.pos}/${x.table}` : ''}${S.user.role === 'admin' ? ` <button class="link" data-er="${n}" style="font-size:12px">Ubah</button>` : ''}</b><small>${esc(x.ts)}</small><small style="white-space:normal">${x.players.map(q => (q.me ? '<span class="mehl">' : '') + '@' + esc(q.username) + ' ' + fmtScore(q.score) + (q.me ? '</span>' : '')).join(' • ')}</small></div></div>`).join('') : '<div class="empty">Belum ada tanding di periode ini</div>'}</div>`);
+    <div class="tiles pptiles" style="margin:10px 0"><div class="tile"><b>${d.plays}</b><small>Tanding</small></div><div class="tile"><b>${fmtScore(d.total)}</b><small>Total</small></div><div class="tile"><b>${fmtScore(d.avg)}</b><small>Rata-rata</small></div><div class="tile"><b>${fmtScore(d.best)}</b><small>Terbaik</small></div></div>
+    <div class="list" style="max-height:52vh;overflow:auto">${d.items.length ? d.items.map((x, n) => `<div style="flex-wrap:wrap"><span class="ico">#${d.items.length - n}</span><div class="t"><b>${x.raw != null ? `${signPt(x.score)} pt <span style="font-weight:500;color:var(--muted)">(${fmtScore(x.raw)}${x.seat ? ', ' + seatName(x.seat) : ''})</span>` : fmtScore(x.score) + ' poin'}${x.pos ? ` • posisi ${x.pos}/${x.table}` : ''}${S.user.role === 'admin' ? ` <button class="link" data-er="${n}" style="font-size:12px">Ubah</button>` : ''}</b><small>${esc(x.ts)}</small><small style="white-space:normal">${x.players.map(q => (q.me ? '<span class="mehl">' : '') + (q.rank ? '#' + q.rank + ' ' : '') + '@' + esc(q.username) + ' ' + plScore(q) + (q.me ? '</span>' : '')).join(' • ')}</small></div></div>`).join('') : '<div class="empty">Belum ada tanding di periode ini</div>'}</div>`);
   o.querySelector('#mx').onclick = closeModal;
   o.onclick = e => { const b = e.target.closest('[data-er]'); if (!b) return; const x = d.items[+b.dataset.er];
-    scoreEditModal(x.roundId, d.game, x.players.map(q => ({username: q.username, score: q.score})), () => { closeModal(); viewChampion(); }); };
+    scoreEditModal(x.roundId, d.game, x.players.map(q => ({username: q.username, score: q.raw != null ? q.raw : q.score})), () => { closeModal(); viewChampion(); }, x.raw != null); };
 }
 function bindSwipe(el){
   let x0 = null, y0 = 0;
@@ -1714,7 +1740,7 @@ function bindSwipe(el){
 }
 function drawPending(p){
   const el = $('#hp'); if (!el) return;
-  const pl = x => x.players.map(q => `<span style="${q.me ? 'font-weight:700' : ''}">@${esc(q.username)} ${fmtScore(q.score)}</span>`).join(' • ');
+  const pl = x => x.players.map(q => `<span style="${q.me ? 'font-weight:700' : ''}">@${esc(q.username)} ${plScore(q)}</span>`).join(' • ');
   el.innerHTML = (p.toConfirm.length ? `<section class="card"><h3>Menunggu konfirmasimu</h3><div class="list">${p.toConfirm.map(x => `<div style="flex-wrap:wrap"><div class="t"><b>${gameLink(x.gid, x.game)}</b><small>dicatat @${esc(x.by)}</small><small>${pl(x)}</small></div>
       <div class="row" style="width:100%;margin-top:6px"><button class="btn sm" data-pc="${esc(x.id)}" data-ok="1">Benar</button><button class="btn sm ghost" data-pc="${esc(x.id)}" data-ok="0">Salah</button></div></div>`).join('')}</div></section>` : '')
     + (p.waiting.length ? `<section class="card"><h3>Menunggu pemain lain</h3><div class="list">${p.waiting.map(x => `<div><div class="t"><b>${gameLink(x.gid, x.game)}</b><small>${pl(x)}</small></div><span class="pill">${x.review ? 'staf' : x.confirmed + '/' + x.needed}</span></div>`).join('')}</div></section>` : '');
@@ -1731,6 +1757,67 @@ async function hofDetail(id){
   o.querySelector('#mx').onclick = closeModal;
   const b = o.querySelector('#hsc'); if (b) b.onclick = () => { closeModal(); scoreForm(g); };
 }
+/* ===== v7.29 Mahjong Riichi: UMA ===== */
+const SEATS = [['E', 'Timur'], ['S', 'Selatan'], ['W', 'Barat'], ['N', 'Utara']];
+const seatName = w => (SEATS.find(x => x[0] === w) || [w, w])[1];
+const signPt = v => (v > 0 ? '+' : '') + fmtScore(v);
+/* skor pemain untuk tampilan: "45.000 → +30" bila UMA, selain itu skor biasa */
+const plScore = q => q.raw != null ? `${fmtScore(q.raw)} → <span style="font-weight:700">${signPt(q.score)}</span>` : fmtScore(q.score);
+function umaFormHtml(u){
+  u = u || {on: false, start: 30000, ret: 30000, u4: [15, 5, -5, -15], u3: [15, 0, -15]};
+  const inp = (id, v) => `<input id="${id}" type="text" inputmode="decimal" value="${esc(String(v))}" style="flex:1;min-width:0">`;
+  return `<div class="card" style="margin:10px 0;padding:10px;border:1px dashed var(--line)"><label class="chk" style="margin:0"><input type="checkbox" id="g_um" ${u.on ? 'checked' : ''}> 🀄 Mahjong Riichi — penilaian UMA</label>
+    <div id="g_umx" style="display:${u.on ? 'block' : 'none'}">
+      <p class="hint" style="font-size:12px;margin:6px 0">Poin akhir = (skor − poin balik) ÷ 1000 + UMA sesuai urutan. Seri diputus arah duduk (Timur → Selatan → Barat → Utara). Leaderboard = total poin akhir.</p>
+      <div class="row" style="gap:8px"><div style="flex:1"><label>Poin awal</label>${inp('g_us', u.start)}</div><div style="flex:1"><label>Poin balik <small>(oka)</small></label>${inp('g_ur', u.ret)}</div></div>
+      <small class="hint">Bila poin balik lebih besar dari poin awal, selisihnya × jumlah pemain jadi bonus <b>oka</b> untuk juara 1. Sama = tanpa oka.</small>
+      <label>UMA 4 pemain</label><div class="umg">${u.u4.map((x, i) => `<div><small>Juara ${i + 1}</small><div class="row">${inp('g_u4' + i, x)}${SGN}</div></div>`).join('')}</div>
+      <label>UMA 3 pemain / Sanma</label><div class="umg">${u.u3.map((x, i) => `<div><small>Juara ${i + 1}</small><div class="row">${inp('g_u3' + i, x)}${SGN}</div></div>`).join('')}</div>
+      <small class="hint">Total skor meja dicek otomatis: 4 × poin awal (Sanma: 3 × poin awal).</small>
+    </div></div>`;
+}
+function umaFormRead(o){
+  const n = id => Number(numIn(o.querySelector(id).value));
+  return {on: o.querySelector('#g_um').checked, start: n('#g_us'), ret: n('#g_ur'), u4: [0, 1, 2, 3].map(i => n('#g_u4' + i)), u3: [0, 1, 2].map(i => n('#g_u3' + i))};
+}
+function umaCalc(cfg, rows){   // rows: [{score, seat}] terisi; sama dengan hitungan server
+  const n = rows.length; if (n !== 3 && n !== 4) return null;
+  const uma = n === 4 ? cfg.u4 : cfg.u3, oka = (cfg.ret - cfg.start) * n / 1000, ord = 'ESWN';
+  const order = rows.map((r, i) => Object.assign({i}, r)).sort((a, b) => b.score - a.score || ord.indexOf(a.seat) - ord.indexOf(b.seat));
+  const out = []; order.forEach((x, k) => { out[x.i] = {rank: k + 1, pt: Math.round(((x.score - cfg.ret) / 1000 + uma[k] + (k === 0 ? oka : 0)) * 10) / 10}; });
+  return out;
+}
+async function gameUma(id){
+  try { if (!D.games) D.games = (await call('games_list')).games; } catch(e){ return null; }
+  const g = (D.games || []).find(x => x.id === id); return g && g.uma && g.uma.on ? g.uma : null;
+}
+/* Pasang/lepas mode UMA di form skor: arah duduk tiap baris + pratinjau poin akhir & cek total */
+function umaWire(root, cfg){
+  const sr = root.querySelector('#sr'); if (!sr) return;
+  root._uma = cfg || null; root._umaMax = cfg ? 4 : 0; sr.classList.toggle('umaon', !!cfg);
+  sr.querySelectorAll('.sw,.upt').forEach(x => x.remove());
+  let pv = root.querySelector('.umap'); if (pv) pv.remove();
+  if (!cfg) return;
+  while (sr.querySelectorAll('.srw').length < 4) sr.insertAdjacentHTML('beforeend', scoreRow('', false));
+  [...sr.querySelectorAll('.srw')].slice(4).forEach(r => { if (!r.querySelector('.su').value && !r.querySelector('.ss').value) r.remove(); });
+  [...sr.querySelectorAll('.srw')].forEach((r, i) => { r.insertAdjacentHTML('afterbegin', `<select class="sw" title="Arah duduk" style="width:auto;flex:0 0 auto;margin:0;padding:8px 4px">${SEATS.map(([k, l], j) => `<option value="${k}" ${j === i ? 'selected' : ''}>${l}</option>`).join('')}</select>`); r.insertAdjacentHTML('beforeend', '<span class="upt"></span>'); });
+  sr.insertAdjacentHTML('afterend', '<div class="umap hint"></div>');
+  const upd = () => {
+    const rows = [...sr.querySelectorAll('.srw')], filled = rows.filter(r => r.querySelector('.su').value.trim() || numIn(r.querySelector('.ss').value) !== '');
+    rows.forEach(r => r.querySelector('.upt').textContent = '');
+    const pv = root.querySelector('.umap'), n = filled.length;
+    if (n !== 3 && n !== 4){ pv.innerHTML = `🀄 UMA: isi 4 pemain (atau 3 untuk Sanma), urut sesuai arah duduk.`; return; }
+    const data = filled.map(r => ({score: Number(numIn(r.querySelector('.ss').value)), seat: r.querySelector('.sw').value}));
+    if (data.some(d => !isFinite(d.score) || numIn('') === '' && isNaN(d.score))){ pv.textContent = ''; }
+    const tot = data.reduce((a, d) => a + (isFinite(d.score) ? d.score : 0), 0), want = cfg.start * n;
+    const seats = data.map(d => d.seat), dup = seats.some((w, i) => seats.indexOf(w) !== i), badSeat = n === 3 && seats.includes('N');
+    const calc = data.every(d => isFinite(d.score)) ? umaCalc(cfg, data) : null;
+    if (calc) filled.forEach((r, i) => { const c = calc[i]; r.querySelector('.upt').innerHTML = `<small>#${c.rank}</small> <b class="${c.pt < 0 ? 'neg' : 'pos'}">${signPt(c.pt)}</b>`; });
+    pv.innerHTML = `${n === 3 ? 'Sanma • ' : ''}Total skor <b>${fmtScore(tot)}</b> / ${fmtScore(want)} ${Math.abs(tot - want) < 0.5 ? '✓' : `<span style="color:var(--terra)">— ${tot > want ? 'lebih' : 'kurang'} ${fmtScore(Math.abs(tot - want))}</span>`}${dup ? ' • <span style="color:var(--terra)">arah duduk ganda</span>' : ''}${badSeat ? ' • <span style="color:var(--terra)">Sanma: pakai Timur/Selatan/Barat</span>' : ''}`;
+  };
+  if (!sr._umaL){ sr._umaL = 1; sr.addEventListener('input', () => root._uma && upd()); sr.addEventListener('change', () => root._uma && upd()); sr.addEventListener('click', () => setTimeout(() => root._uma && upd(), 0)); }
+  root._umaUpd = upd; upd();
+}
 function scoreRows(max, selfName){
   return `<div id="sr">${Array.from({length: 2}, (_, i) => scoreRow(i === 0 ? selfName : '', i === 0 && !!selfName)).join('')}</div>${max > 2 ? '<button class="link" id="sadd">+ Tambah pemain</button>' : ''}`;
 }
@@ -1743,7 +1830,7 @@ function numIn(v){ return String(v == null ? '' : v).trim().replace(/\s/g, '').r
 document.addEventListener('click', e => { const b = e.target.closest('[data-sgn]'); if (!b) return; e.preventDefault();
   const i = b.previousElementSibling; if (!i || i.disabled) return; const v = numIn(i.value);
   i.value = v.startsWith('-') ? v.slice(1) : '-' + v; i.focus(); i.dispatchEvent(new Event('input', {bubbles: true})); });
-function readScoreRows(root){ return [...root.querySelectorAll('.srw')].map(r => ({username: r.querySelector('.su').value.trim(), score: numIn(r.querySelector('.ss').value)})).filter(x => x.username || x.score !== ''); }
+function readScoreRows(root){ return [...root.querySelectorAll('.srw')].map(r => { const o = {username: r.querySelector('.su').value.trim(), score: numIn(r.querySelector('.ss').value)}; const w = r.querySelector('.sw'); if (w) o.seat = w.value; return o; }).filter(x => x.username || x.score !== ''); }
 /* v7.23 bantuan pilih pemain di form skor HoF: saran saat mengetik + chip cepat + scan QR */
 function scoreAssist(root, max){
   const sr = root.querySelector('#sr'); if (!sr || sr._as) return; sr._as = 1;
@@ -1759,7 +1846,7 @@ function scoreAssist(root, max){
     n = String(n || '').trim().replace(/^@/, ''); if (!n) return;
     if (used().indexOf(n.toLowerCase()) >= 0 && !(inp && inp.value.trim().replace(/^@/, '').toLowerCase() === n.toLowerCase())) return toast('@' + n + ' sudah ada', 'err');
     let t = inp || [...sr.querySelectorAll('.su')].find(i => !i.readOnly && !i.value.trim());
-    if (!t){ if (sr.querySelectorAll('.srw').length >= max) return toast('Maksimal ' + max + ' pemain', 'err'); sr.insertAdjacentHTML('beforeend', scoreRow('', false)); t = [...sr.querySelectorAll('.su')].pop(); }
+    if (!t){ const lim = root._umaMax || max; if (sr.querySelectorAll('.srw').length >= lim) return toast('Maksimal ' + lim + ' pemain', 'err'); sr.insertAdjacentHTML('beforeend', scoreRow('', false)); t = [...sr.querySelectorAll('.su')].pop(); }
     t.value = n; closeSug(); draw(); partyHint(n);
     const sc = t.closest('.srw').querySelector('.ss'); if (sc && !sc.value) sc.focus();
   };
@@ -1774,7 +1861,7 @@ function scoreAssist(root, max){
   sr.addEventListener('focusout', e => { if (e.target.closest('.su')) setTimeout(() => { if (sug && !sug.contains(document.activeElement)) closeSug(); }, 150); });
   quick.onclick = e => { const a = e.target.closest('[data-all]'); if (a){ groups.find(g => g.label === a.dataset.all).names.filter(n => used().indexOf(n.toLowerCase()) < 0).forEach(n => fill(n)); return; } const b = e.target.closest('[data-ad]'); if (b) fill(b.dataset.ad); };
   box.querySelector('.pkq').onclick = () => scanQrModal('Scan QR member', async data => { try { const d = await call('qr_username', {q: data}); if (d.username){ fill(d.username); toast('@' + d.username + ' ditambahkan', 'ok'); } } catch(e){ handleErr(e); } });
-  root._scoreReset = () => { sr.querySelectorAll('.su:not([readonly]),.ss').forEach(i => i.value = ''); draw(); };
+  root._scoreReset = () => { sr.querySelectorAll('.su:not([readonly]),.ss').forEach(i => i.value = ''); sr.querySelectorAll('.sw').forEach((s, i) => s.selectedIndex = i % 4); draw(); if (root._umaUpd) root._umaUpd(); };
   (async () => { try {
     if (staff){ const d = await call('present_today'); setGroup('Hadir hari ini', d.users.map(x => x.username), false); }
     else { const d = await call('play_friends'); setGroup('Anggota Party', d.party, true); setGroup('Sering main bareng', d.often, false); }
@@ -1783,13 +1870,14 @@ function scoreAssist(root, max){
 function bindScoreAdd(root, max){
   scoreAssist(root, max);
   const add = root.querySelector('#sadd'); if (!add) return;
-  add.onclick = () => { const n = root.querySelectorAll('.srw').length; if (n >= max) return toast('Maksimal ' + max + ' pemain', 'err'); root.querySelector('#sr').insertAdjacentHTML('beforeend', scoreRow('', false)); };
+  add.onclick = () => { const n = root.querySelectorAll('.srw').length, lim = root._umaMax || max; if (n >= lim) return toast('Maksimal ' + lim + ' pemain', 'err'); root.querySelector('#sr').insertAdjacentHTML('beforeend', scoreRow('', false)); };
 }
 function scoreForm(g){
   const o = openModal(`<div class="row between"><h3>Catat skor ${esc(g.name)}</h3><button class="x" id="mx">×</button></div>
     <p class="hint" style="margin:0 0 8px;font-size:12px">Isi semua pemain di meja dan skornya. Pemain lain akan diminta mengonfirmasi di HP mereka. Skor yang masuk Top 3 bisa perlu persetujuan staf.</p>
     ${scoreRows(12, S.user.username)}<button class="btn" id="fs">Kirim untuk dikonfirmasi</button>`);
   o.querySelector('#mx').onclick = closeModal; bindScoreAdd(o, 12);
+  gameUma(g.id).then(cfg => { if (cfg){ umaWire(o, cfg); o.querySelector('.hint').insertAdjacentHTML('afterend', '<p class="hint" style="margin:0 0 8px;font-size:12px">🀄 <b>Mahjong UMA:</b> isi skor akhir tiap pemain sesuai arah duduk. Poin akhir & urutan dihitung otomatis.</p>'); } });
   o.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => {
     await call('score_submit', {gameId: g.id, players: readScoreRows(o)}); closeModal(); toast('Terkirim, menunggu konfirmasi pemain lain', 'ok'); if (S.tab === 'champ') viewChampion();
   });
@@ -1835,20 +1923,23 @@ function gameForm(g){
         <label>Persetujuan staf</label><select id="g_ha"><option value="top" ${g.hofApprove !== 'none' && g.hofApprove !== 'all' ? 'selected' : ''}>Hanya yang berpengaruh (masuk Top 3 atau melewati ambang)</option><option value="all" ${g.hofApprove === 'all' ? 'selected' : ''}>Semua skor menunggu staf</option><option value="none" ${g.hofApprove === 'none' ? 'selected' : ''}>Tanpa persetujuan (cukup konfirmasi pemain)</option></select>
         <label>Ambang skor perlu dicek staf <small>(0 = tidak dipakai)</small></label><input id="g_hf" type="number" min="0" value="${g.hofFlag || 0}">
         <label class="chk"><input type="checkbox" id="g_hc" ${g.hofCheckin ? 'checked' : ''}> Pemain wajib sudah check-in hari itu</label>
-        <label class="chk"><input type="checkbox" id="g_hp" ${g.hofPlays !== false ? 'checked' : ''}> Tampilkan jumlah pertandingan tiap pemain</label>
+        <label class="chk"><input type="checkbox" id="g_hpl" ${g.hofPlays !== false ? 'checked' : ''}> Tampilkan jumlah pertandingan tiap pemain</label>
         <label class="chk"><input type="checkbox" id="g_hd" ${g.hofDetail !== false ? 'checked' : ''}> Semua orang bisa lihat rincian skor tiap tanding <small>(bila mati: hanya pemiliknya & staf)</small></label>
+        ${umaFormHtml(g.uma)}
         ${g.id && g.hofPeriod === 'season' ? `<button class="btn ghost" id="g_se">Akhiri Musim ${g.seasonNo || 1} & mulai Musim ${(g.seasonNo || 1) + 1}</button>` : ''}
       </div></div>
     <button class="btn" id="fs">Simpan</button>${g.id ? '<button class="btn danger" id="fd">Hapus Game</button>' : ''}`);
   o.querySelector('#mx').onclick = closeModal;
   o.querySelector('#g_h').onchange = e => { o.querySelector('#g_hx').style.display = e.target.checked ? 'block' : 'none'; };
+  const umOn = () => { const on = o.querySelector('#g_um').checked; o.querySelector('#g_umx').style.display = on ? 'block' : 'none'; const hm = o.querySelector('#g_hm'); if (on) hm.value = 'sum'; hm.disabled = on; };
+  o.querySelector('#g_um').onchange = umOn; umOn();
   const se = o.querySelector('#g_se');
   if (se) se.onclick = async () => { if (await askConfirm('Akhiri musim ini? Juara dicatat dan papan mulai dari nol.', 'Akhiri musim')) run(se, async () => { await call('hof_season_end', {gameId: g.id}); closeModal(); toast('Musim baru dimulai', 'ok'); viewGameAdmin(); }); };
   const v = id => o.querySelector(id).value;
   o.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => {
     const d = await call('game_save', {id: g.id, name: v('#g_n'), image: v('#g_i'), minPlayers: v('#g_mn'), maxPlayers: v('#g_mx'), level: v('#g_l'), duration: v('#g_d'),
       mechanics: v('#g_m'), description: v('#g_ds'), active: o.querySelector('#g_a').checked,
-      hof: o.querySelector('#g_h').checked, hofMode: v('#g_hm'), hofPeriod: v('#g_hp'), hofEntry: v('#g_he'), hofMax: v('#g_hx2'), hofApprove: v('#g_ha'), hofFlag: v('#g_hf'), hofCheckin: o.querySelector('#g_hc').checked, hofPlays: o.querySelector('#g_hp').checked, hofDetail: o.querySelector('#g_hd').checked});
+      hof: o.querySelector('#g_h').checked, hofMode: v('#g_hm'), hofPeriod: v('#g_hp'), hofEntry: v('#g_he'), hofMax: v('#g_hx2'), hofApprove: v('#g_ha'), hofFlag: v('#g_hf'), hofCheckin: o.querySelector('#g_hc').checked, hofPlays: o.querySelector('#g_hpl').checked, hofDetail: o.querySelector('#g_hd').checked, uma: umaFormRead(o)});
     closeModal(); renderGameAdmin(d.games); toast('Game disimpan', 'ok');
   });
   const del = o.querySelector('#fd');
@@ -2170,7 +2261,7 @@ async function loadReview(){
     const d = await call('score_review');
     if (!d.items.length){ el.style.display = 'none'; return; }
     el.style.display = ''; 
-    el.innerHTML = `<h3>Menunggu persetujuan <span class="pill">${d.items.length}</span></h3><div class="list">${d.items.map(x => `<div style="flex-wrap:wrap"><div class="t"><b>${gameLink(x.gameId, x.game)}</b><small>dicatat @${esc(x.by)} • ${esc(x.ts.slice(5,16))}</small><small>${x.players.map(q => '@' + esc(q.username) + ' ' + fmtScore(q.score)).join(' • ')}</small></div>
+    el.innerHTML = `<h3>Menunggu persetujuan <span class="pill">${d.items.length}</span></h3><div class="list">${d.items.map(x => `<div style="flex-wrap:wrap"><div class="t"><b>${gameLink(x.gameId, x.game)}</b><small>dicatat @${esc(x.by)} • ${esc(x.ts.slice(5,16))}</small><small>${x.players.map(q => '@' + esc(q.username) + ' ' + plScore(q)).join(' • ')}</small></div>
       <div class="row" style="width:100%;margin-top:6px"><button class="btn sm" data-rd="${esc(x.id)}" data-ok="1">Setujui</button><button class="btn sm ghost" data-rd="${esc(x.id)}" data-ok="0">Tolak</button></div></div>`).join('')}</div>`;
     el.onclick = e => {
       const b = e.target.closest('[data-rd]'); if (!b) return;
@@ -2190,9 +2281,11 @@ function visitGame(){
       <label>Pemain <small>(opsional)</small></label><input id="gu" autocapitalize="none" placeholder="user1, user2">
       <button class="btn" id="ggo">Catat 1 kali main</button></section>
       ${list.some(g => g.hof) ? `<section class="card" id="hofS"><h3>Catat skor Hall of Fame</h3>
-        <label>Game</label><select id="hg">${list.filter(g => g.hof).map(g => `<option value="${esc(g.id)}">${esc(g.name)} (${g.hofMode === 'sum' ? 'akumulasi' : 'tertinggi'})</option>`).join('')}</select>
+        <label>Game</label><select id="hg">${list.filter(g => g.hof).map(g => `<option value="${esc(g.id)}">${esc(g.name)} (${g.uma && g.uma.on ? 'UMA' : g.hofMode === 'sum' ? 'akumulasi' : 'tertinggi'})</option>`).join('')}</select>
         <label>Pemain & skor</label>${scoreRows(12, '')}<button class="btn" id="hgo">Simpan skor</button></section>` : ''}`;
     const hs = $('#hofS'); if (hs){ bindScoreAdd(hs, 12);
+      const hgU = () => { const gg = list.find(x => x.id === $('#hg').value); umaWire(hs, gg && gg.uma && gg.uma.on ? gg.uma : null); };
+      $('#hg').onchange = hgU; hgU();
       $('#hgo').onclick = ev => run(ev.currentTarget, async () => { await call('score_staff', {gameId: $('#hg').value, players: readScoreRows(hs)}); toast('Skor tercatat', 'ok'); if (hs._scoreReset) hs._scoreReset(); else hs.querySelectorAll('.su,.ss').forEach(i => i.value = ''); }); }
     loadReview();
     const gpk = attachPicker($('#gu'));
@@ -2593,18 +2686,18 @@ function scoreRoundsModal(d){
   o.querySelector('#mx').onclick = closeModal;
   o.onclick = e => {
     const se = e.target.closest('[data-se]');
-    if (se){ const it = d.items.find(x => x.id === se.dataset.se); return scoreEditModal(it.id, it.game, it.list, async () => scoreRoundsModal(await call('score_rounds'))); }
+    if (se){ const it = d.items.find(x => x.id === se.dataset.se); return scoreEditModal(it.id, it.game, it.list, async () => scoreRoundsModal(await call('score_rounds')), it.uma); }
     const b = e.target.closest('[data-v]'); if (!b) return;
     const m = openModal(`<div class="row between"><h3>Batalkan catatan skor</h3><button class="x" id="mx">×</button></div><label>Alasan *</label><input id="vr" maxlength="100" placeholder="mis. skor tidak masuk akal"><button class="btn danger" id="fs">Batalkan</button>`);
     m.querySelector('#mx').onclick = closeModal;
     m.querySelector('#fs').onclick = ev => run(ev.currentTarget, async () => { const r = await call('score_void', {roundId: b.dataset.v, reason: m.querySelector('#vr').value}); toast('Dibatalkan', 'ok'); scoreRoundsModal(r); });
   };
 }
-function scoreEditModal(roundId, game, list, after){
+function scoreEditModal(roundId, game, list, after, isUma){
   const m = openModal(`<div class="row between"><h3>Ubah skor ${esc(game)}</h3><button class="x" id="mx">×</button></div>
     ${list.map(p => `<label>@${esc(p.username)}</label><div class="row" style="gap:6px"><input type="text" inputmode="decimal" autocomplete="off" data-su="${esc(p.username)}" value="${esc(p.score)}" style="flex:1">${SGN}</div>`).join('')}
     <label>Alasan perubahan *</label><input id="ser" maxlength="100" placeholder="mis. salah ketik, seharusnya 32">
-    <p class="hint" style="font-size:12.5px">Papan Hall of Fame dihitung ulang otomatis. Pemain di meja ini mendapat notifikasi.</p>
+    <p class="hint" style="font-size:12.5px">${isUma ? '🀄 Isi skor mentah (mis. 32000). Urutan & poin UMA dihitung ulang otomatis; total meja tetap harus sesuai. ' : ''}Papan Hall of Fame dihitung ulang otomatis. Pemain di meja ini mendapat notifikasi.</p>
     <button class="btn" id="ses">Simpan perubahan</button>`);
   m.querySelector('#mx').onclick = closeModal;
   m.querySelector('#ses').onclick = ev => run(ev.currentTarget, async () => {

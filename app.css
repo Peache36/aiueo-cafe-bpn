@@ -437,3 +437,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--terra)}
 .appbar .pmode{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 10px;font:600 12px/1 inherit;font-family:inherit;cursor:pointer;margin-right:6px;white-space:nowrap}
 .sgn{flex:0 0 auto;width:38px;min-height:38px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:700 17px/1 inherit;font-family:inherit;cursor:pointer;padding:0}
 .sgn:active{background:var(--line)}
+/* UMA */
+.srw .upt{flex:0 0 auto;min-width:52px;text-align:right;font-size:13px;white-space:nowrap}.srw .upt small{color:var(--muted)}
+.upt .pos{color:var(--good,#2e7d32)}.upt .neg{color:var(--terra)}
+.umap{font-size:12.5px;margin:2px 0 8px}
+.umg{display:grid;grid-template-columns:1fr 1fr;gap:8px}.umg small{color:var(--muted);font-size:11.5px}.umg .row{gap:6px;flex-wrap:nowrap}.umg input{margin:0}
+#sr.umaon .srw{flex-wrap:wrap;row-gap:6px;padding:8px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px!important}
+#sr.umaon .sw{flex:0 0 108px!important}#sr.umaon .su{flex:1 1 140px!important;min-width:0}
+#sr.umaon .ss{flex:1 1 120px!important;min-width:0}#sr.umaon .upt{min-width:64px}
